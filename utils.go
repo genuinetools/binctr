@@ -7,50 +7,68 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/go-systemd/activation"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-// startContainer starts the container. Returns the exit status or -1 and an
-// error. Signals sent to the current process will be forwarded to container.
-func startContainer(spec *specs.Spec, id string) (int, error) {
+var container libcontainer.Container
+
+func createContainer(id string, spec *specs.Spec) (libcontainer.Container, error) {
 	// create the libcontainer config
 	config, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
-		CgroupName: id,
-		Spec:       spec,
+		CgroupName:       id,
+		UseSystemdCgroup: false,
+		NoPivotRoot:      false,
+		Spec:             spec,
 	})
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	if _, err := os.Stat(config.Rootfs); err != nil {
 		if os.IsNotExist(err) {
-			return -1, fmt.Errorf("rootfs (%q) does not exist", config.Rootfs)
+			return nil, fmt.Errorf("rootfs (%q) does not exist", config.Rootfs)
 		}
-		return -1, err
+		return nil, err
 	}
 
+	logrus.Debugf("loading factory")
 	factory, err := loadFactory()
 	if err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("creating factory")
+	return factory.Create(id, config)
+}
+
+// startContainer starts the container. Returns the exit status or -1 and an
+// error. Signals sent to the current process will be forwarded to container.
+func startContainer(spec *specs.Spec, id, pidFile string, detach bool) (int, error) {
+	container, err := createContainer(id, spec)
+	if err != nil {
 		return -1, err
 	}
 
-	ctr, err := factory.Create(id, config)
-	if err != nil {
-		return -1, err
+	// Support on-demand socket activation by passing file descriptors into the container init process.
+	listenFDs := []*os.File{}
+	if os.Getenv("LISTEN_FDS") != "" {
+		listenFDs = activation.Files(false)
 	}
 
 	r := &runner{
 		enableSubreaper: true,
 		shouldDestroy:   true,
-		container:       ctr,
+		container:       container,
 		console:         console,
-		detach:          false,
-		pidFile:         "",
-		listenFDs:       []*os.File{},
+		detach:          detach,
+		pidFile:         pidFile,
+		listenFDs:       listenFDs,
 	}
+	logrus.Debugf("running %#v", *r)
 	return r.run(&spec.Process)
 }
 
@@ -167,6 +185,7 @@ type runner struct {
 }
 
 func (r *runner) run(config *specs.Process) (int, error) {
+	logrus.Debugf("runner new process")
 	process, err := newProcess(*config)
 	if err != nil {
 		r.destroy()
@@ -176,22 +195,26 @@ func (r *runner) run(config *specs.Process) (int, error) {
 		process.Env = append(process.Env, fmt.Sprintf("LISTEN_FDS=%d", len(r.listenFDs)), "LISTEN_PID=1")
 		process.ExtraFiles = append(process.ExtraFiles, r.listenFDs...)
 	}
+	logrus.Debugf("runner hostuid")
 	rootuid, err := r.container.Config().HostUID()
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
+	logrus.Debugf("runner setupio")
 	tty, err := setupIO(process, rootuid, r.console, config.Terminal, r.detach)
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
 	handler := newSignalHandler(tty, r.enableSubreaper)
+	logrus.Debugf("container start, %#v", r.container)
 	if err := r.container.Start(process); err != nil {
 		r.destroy()
 		tty.Close()
 		return -1, err
 	}
+	logrus.Debugf("close post start")
 	if err := tty.ClosePostStart(); err != nil {
 		r.terminate(process)
 		r.destroy()
@@ -210,6 +233,7 @@ func (r *runner) run(config *specs.Process) (int, error) {
 		tty.Close()
 		return 0, nil
 	}
+	logrus.Debugf("forward handler")
 	status, err := handler.forward(process)
 	if err != nil {
 		r.terminate(process)
@@ -242,4 +266,11 @@ func createLibContainerRlimit(rlimit specs.Rlimit) (configs.Rlimit, error) {
 		Hard: uint64(rlimit.Hard),
 		Soft: uint64(rlimit.Soft),
 	}, nil
+}
+
+// If systemd is supporting sd_notify protocol, this function will add support
+// for sd_notify protocol from within the container.
+func setupSdNotify(spec *specs.Spec, notifySocket string) {
+	spec.Mounts = append(spec.Mounts, specs.Mount{Destination: notifySocket, Type: "bind", Source: notifySocket, Options: []string{"bind"}})
+	spec.Process.Env = append(spec.Process.Env, fmt.Sprintf("NOTIFY_SOCKET=%s", notifySocket))
 }
