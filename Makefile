@@ -1,4 +1,4 @@
-.PHONY: clean all fmt vet lint build test install static
+.PHONY: clean clean-rootfs all fmt vet lint build test install image.tar rootfs.go static
 PREFIX?=$(shell pwd)
 BUILDTAGS=seccomp apparmor
 
@@ -16,20 +16,40 @@ ifneq ($(GITUNTRACKEDCHANGES),)
 GITCOMMIT := $(GITCOMMIT)-dirty
 endif
 
+IMAGE := alpine
+DOCKER_ROOTFS_IMAGE := $(IMAGE)
+
 LDFLAGS := ${LDFLAGS} \
-	-X $(PROJECT)/main.GITCOMMIT=${GITCOMMIT} \
-	-X $(PROJECT)/main.VERSION=${VERSION} \
+	-X main.GITCOMMIT=${GITCOMMIT} \
+	-X main.VERSION=${VERSION} \
+	-X main.IMAGE=${IMAGE} \
+	-X main.IMAGESHA=$(shell docker inspect --format "{{.Id}}" $(IMAGE))
 
-all: clean build fmt lint test vet install
+BINDIR := $(CURDIR)/bin
 
-build:
+all: clean static fmt lint test vet install
+
+build: rootfs.go
 	@echo "+ $@"
 	go build -tags "$(BUILDTAGS)" -ldflags "${LDFLAGS}" .
 
-static:
+$(BINDIR):
+	@mkdir -p $@
+
+static: $(BINDIR) rootfs.go
 	@echo "+ $@"
 	CGO_ENABLED=1 go build -tags "$(BUILDTAGS) cgo static_build" \
-		-ldflags "-w -extldflags -static ${LDFLAGS}" -o binctr .
+		-ldflags "-w -extldflags -static ${LDFLAGS}" -o bin/$(notdir $(IMAGE)) .
+	@sudo setcap cap_chown,cap_fowner,cap_dac_override,cap_setuid,cap_setgid+ep ./bin/$(notdir $(IMAGE))
+	@echo "Static container created at: ./bin/$(notdir $(IMAGE))"
+	@echo "Run with ./bin/$(notdir $(IMAGE))"
+
+image.tar:
+	docker pull --disable-content-trust=false $(DOCKER_ROOTFS_IMAGE)
+	docker export $(shell docker create $(DOCKER_ROOTFS_IMAGE) sh) > $@
+
+rootfs.go: image.tar
+	go generate
 
 fmt:
 	@echo "+ $@"
@@ -47,9 +67,15 @@ vet:
 	@echo "+ $@"
 	@go vet $(shell go list ./... | grep -v $(VENDOR))
 
-clean:
+clean-rootfs:
+	@sudo $(RM) -r rootfs
+
+clean: clean-rootfs
 	@echo "+ $@"
 	@$(RM) binctr
+	@$(RM) *.tar
+	@$(RM) rootfs.go
+	@$(RM) -r $(BINDIR)
 
 install:
 	@echo "+ $@"

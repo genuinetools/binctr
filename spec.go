@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -30,9 +33,18 @@ var (
 			Cwd:             "/",
 			NoNewPrivileges: true,
 			Capabilities: []string{
-				"CAP_AUDIT_WRITE",
-				"CAP_KILL",
+				"CAP_CHOWN",
+				"CAP_DAC_OVERRIDE",
+				"CAP_FSETID",
+				"CAP_FOWNER",
+				"CAP_MKNOD",
+				"CAP_SETGID",
+				"CAP_SETUID",
+				"CAP_SETFCAP",
+				"CAP_SETPCAP",
 				"CAP_NET_BIND_SERVICE",
+				"CAP_KILL",
+				"CAP_AUDIT_WRITE",
 			},
 			Rlimits: []specs.Rlimit{
 				{
@@ -60,7 +72,7 @@ var (
 				Destination: "/dev/pts",
 				Type:        "devpts",
 				Source:      "devpts",
-				Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
+				Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
 			},
 			{
 				Destination: "/dev/shm",
@@ -84,10 +96,24 @@ var (
 				Destination: "/sys/fs/cgroup",
 				Type:        "cgroup",
 				Source:      "cgroup",
-				Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
+				Options:     []string{"nosuid", "noexec", "nodev", "relatime"},
 			},
 		},
 		Linux: specs.Linux{
+			UIDMappings: []specs.IDMapping{
+				{
+					HostID:      remappedUID,
+					ContainerID: 0,
+					Size:        46578392,
+				},
+			},
+			GIDMappings: []specs.IDMapping{
+				{
+					HostID:      remappedGID,
+					ContainerID: 0,
+					Size:        46578392,
+				},
+			},
 			MaskedPaths: []string{
 				"/proc/kcore",
 				"/proc/latency_stats",
@@ -118,10 +144,13 @@ var (
 					Type: "ipc",
 				},
 				{
-					Type: "uts",
+					Type: "network",
 				},
 				{
 					Type: "user",
+				},
+				{
+					Type: "uts",
 				},
 				{
 					Type: "mount",
@@ -131,3 +160,21 @@ var (
 		},
 	}
 )
+
+// loadSpec loads the specification from the provided path.
+// If the path is empty then the default path will be "config.json"
+func loadSpec(cPath string) (spec *specs.Spec, err error) {
+	cf, err := os.Open(cPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("JSON specification file %s not found", cPath)
+		}
+		return nil, err
+	}
+	defer cf.Close()
+
+	if err = json.NewDecoder(cf).Decode(&spec); err != nil {
+		return nil, err
+	}
+	return spec, nil
+}

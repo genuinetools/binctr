@@ -45,3 +45,9 @@ Icon
 .Trashes
 
 binctr
+*.tar
+rootfs
+config.json
+bin
+rootfs.go
+.ip
