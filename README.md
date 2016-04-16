@@ -1,7 +1,17 @@
 # binctr
 
 Create fully static, including rootfs embedded, binaries that pop you directly
-into a container. Can be run by an unprivileged user.
+into a container. **Can be run by an unprivileged user.**
+
+This is based off a crazy idea from [@crosbymichael](https://github.com/crosbymichael) who first embedded an image in a binary :D
+
+**NOTE**
+
+You may have noticed you can't file an issue. That's because this is using a crazy
+person's (aka my) fork of libcontainer
+and until I get the patches into upstream there's no
+way in hell I'm fielding issues from whoever is crazy 
+enough to try this.
 
 ### Building
 
@@ -31,14 +41,14 @@ $ make static IMAGE=nginx
 Static container created at: ./bin/nginx
 Run with ./bin/nginx
 
-$ ./bin/nginx nginx -g daemon off
+$ ./bin/nginx nginx -g "daemon off;"
 
 # But we have no networking! Don't worry we can fix this
 # Let's install my super cool binary for setting up networking in a container
 $ go get github.com/jfrazelle/netns
 
-# now we can all this as a prestart hook
-$ ./bin/nginx --hook prestart:netns nginx -g daemon off
+# now we can add this as a prestart hook
+$ ./bin/nginx --hook prestart:netns nginx -g "daemon off;"
 
 # let's get the ip file
 $ cat .ip
@@ -84,9 +94,16 @@ $ ./bin/alpine -h
     	print version and exit
 ```
 
+## Cool things
+
+The binary spawned does NOT need to oversee the container process if you
+run in detached mode with a PID file. You can have it watched by the user mode 
+systemd so that this binary is really just the launcher :)
+
 ## Caveats
 
-**Caps the binary needs TO UNPACK AND SET THE RIGHT PERMS ON THE ROOTFS FOR THE USERNS USER**
+**Caps the binary needs to unpack and set 
+the right perms on the roofs for the userns user**
 
 - **CAP_CHOWN**: chown the rootfs to the userns user
 - **CAP_FOWNER**: chmod rootfs
