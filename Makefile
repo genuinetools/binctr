@@ -49,7 +49,7 @@ image.tar:
 	docker export $(shell docker create $(DOCKER_ROOTFS_IMAGE) sh) > $@
 
 rootfs.go: image.tar
-	go generate
+	GOMAXPROCS=1 go generate
 
 fmt:
 	@echo "+ $@"
@@ -76,6 +76,7 @@ clean: clean-rootfs
 	@$(RM) *.tar
 	@$(RM) rootfs.go
 	@$(RM) -r $(BINDIR)
+	-@docker rm $(shell docker ps -aq) /dev/null 2>&1
 
 install:
 	@echo "+ $@"

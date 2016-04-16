@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	libcontainerUtils "github.com/opencontainers/runc/libcontainer/utils"
@@ -27,6 +28,7 @@ func (s *CpusetGroup) Apply(d *cgroupData) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
+	logrus.Debugf("apply cpuset dir is %s", dir)
 	return s.ApplyDir(dir, d.config, d.pid)
 }
 

@@ -12,6 +12,7 @@ import (
 	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -180,12 +181,20 @@ func main() {
 
 	// install the default apparmor profile
 	if apparmor.IsEnabled() {
-		if err := aaprofile.InstallDefault(defaultApparmorProfile); err != nil {
-			logrus.Warnf("AppArmor is enabled on the the system, but the profile (%s) could not be loaded", defaultApparmorProfile)
+		// check if we have the docker-default apparmor profile loaded
+		if err := aaprofile.IsLoaded(defaultApparmorProfile); err != nil {
+			logrus.Warnf("AppArmor enabled on system but the %s profile is not loaded. apparmor_parser needs root to load a profile so we can't do it for you.", defaultApparmorProfile)
 		} else {
 			spec.Process.ApparmorProfile = defaultApparmorProfile
 		}
 	}
+
+	// set the CgroupsPath as this user
+	user, err := user.CurrentUser()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	spec.Linux.CgroupsPath = sPtr(user.Name)
 
 	if err := unpackRootfs(spec); err != nil {
 		logrus.Fatal(err)

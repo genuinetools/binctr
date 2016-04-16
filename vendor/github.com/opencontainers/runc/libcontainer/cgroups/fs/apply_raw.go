@@ -111,10 +111,13 @@ func (m *Manager) Apply(pid int) (err error) {
 
 	var c = m.Cgroups
 
+	logrus.Debugf("pre get cgroups data: %#v", c)
 	d, err := getCgroupData(m.Cgroups, pid)
 	if err != nil {
 		return err
 	}
+
+	logrus.Debugf("cgroups data: %#v, config: %#v", d, d.config)
 
 	if c.Paths != nil {
 		paths := make(map[string]string)
@@ -129,6 +132,7 @@ func (m *Manager) Apply(pid int) (err error) {
 			paths[name] = path
 		}
 		m.Paths = paths
+		logrus.Debugf("cgroups apply paths: %#v", m.Paths)
 		return cgroups.EnterPid(m.Paths, pid)
 	}
 
@@ -136,6 +140,7 @@ func (m *Manager) Apply(pid int) (err error) {
 	defer m.mu.Unlock()
 	paths := make(map[string]string)
 	for _, sys := range subsystems {
+		logrus.Debugf("applying cgroups to subsystem %#v", sys)
 		if err := sys.Apply(d); err != nil {
 			return err
 		}
@@ -353,23 +358,25 @@ func writeFile(dir, file, data string) error {
 	if dir == "" {
 		return fmt.Errorf("no such directory for %s", file)
 	}
-
 	// get the current user
 	u, err := user.CurrentUser()
 	if err != nil {
 		return err
 	}
 
-	if err := os.Chown(dir, u.Uid, u.Gid); err != nil {
-		return fmt.Errorf("failed to chown %s to %d:%d -> %v", dir, u.Uid, u.Gid, err)
+	if err := os.Lchown(dir, u.Uid, u.Gid); err != nil {
+		return fmt.Errorf("failed to chown to %d:%d -> %v", u.Uid, u.Gid, err)
 	}
+	logrus.Debugf("chown dir %s to %d:%d", dir, u.Uid, u.Gid)
 
-	if err := os.Chown(filepath.Join(dir, "tasks"), u.Uid, u.Gid); err != nil {
-		return fmt.Errorf("failed to chown %s/tasks to %d:%d -> %v", dir, u.Uid, u.Gid, err)
+	if err := os.Lchown(filepath.Join(dir, file), u.Uid, u.Gid); err != nil {
+		return fmt.Errorf("failed to chown to %d:%d -> %v", u.Uid, u.Gid, err)
 	}
+	logrus.Debugf("chown %s to %d:%d", filepath.Join(dir, file), u.Uid, u.Gid)
 
 	if err := ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700); err != nil {
 		logrus.Debugf("failed to write %v to %v: %v", data, file, err)
+		//return err
 	}
 	return nil
 }
