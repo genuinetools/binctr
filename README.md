@@ -3,13 +3,20 @@
 Create fully static, including rootfs embedded, binaries that pop you directly
 into a container. **Can be run by an unprivileged user.**
 
-This is based off a crazy idea from [@crosbymichael](https://github.com/crosbymichael) who first embedded an image in a binary :D
+This is based off a crazy idea from [@crosbymichael](https://github.com/crosbymichael)
+who first embedded an image in a binary :D
 
 **NOTE**
 
 You may have noticed you can't file an issue. That's because this is using a crazy
 person's (aka my) fork of libcontainer and until I get the patches into upstream
 there's no way in hell I'm fielding issues from whoever is crazy enough to try this.
+
+
+**Nginx running with my user "jessie".**
+
+![nginx.png](nginx.png)
+
 
 ### Building
 
@@ -105,12 +112,6 @@ $ ./bin/alpine -h
 The binary spawned does NOT need to oversee the container process if you
 run in detached mode with a PID file. You can have it watched by the user mode
 systemd so that this binary is really just the launcher :)
-
-## Example
-
-Nginx running with my user "jessie".
-
-![nginx.png](nginx.png)
 
 ## Caveats
 
