@@ -116,7 +116,7 @@ systemd so that this binary is really just the launcher :)
 ## Caveats
 
 **Caps the binary needs to unpack and set
-the right perms on the roofs for the userns user**
+the right perms on the rootfs for the userns user**
 
 - **CAP_CHOWN**: chown the rootfs to the userns user
 - **CAP_FOWNER**: chmod rootfs
