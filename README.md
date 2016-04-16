@@ -8,12 +8,18 @@ This is based off a crazy idea from [@crosbymichael](https://github.com/crosbymi
 **NOTE**
 
 You may have noticed you can't file an issue. That's because this is using a crazy
-person's (aka my) fork of libcontainer
-and until I get the patches into upstream there's no
-way in hell I'm fielding issues from whoever is crazy 
-enough to try this.
+person's (aka my) fork of libcontainer and until I get the patches into upstream
+there's no way in hell I'm fielding issues from whoever is crazy enough to try this.
 
 ### Building
+
+This uses the new Golang vendoring so you need go 1.6 or
+`GO15VENDOREXPERIMENT=1` in your env.
+
+You will also need `libapparmor-dev` and `libseccomp-dev`.
+
+Most importantly you need userns in your kernel (`CONFIG_USER_NS=y`)
+or else this won't even work.
 
 ```console
 $ make static
@@ -97,12 +103,18 @@ $ ./bin/alpine -h
 ## Cool things
 
 The binary spawned does NOT need to oversee the container process if you
-run in detached mode with a PID file. You can have it watched by the user mode 
+run in detached mode with a PID file. You can have it watched by the user mode
 systemd so that this binary is really just the launcher :)
+
+## Example
+
+Nginx running with my user "jessie".
+
+![nginx.png](nginx.png)
 
 ## Caveats
 
-**Caps the binary needs to unpack and set 
+**Caps the binary needs to unpack and set
 the right perms on the roofs for the userns user**
 
 - **CAP_CHOWN**: chown the rootfs to the userns user

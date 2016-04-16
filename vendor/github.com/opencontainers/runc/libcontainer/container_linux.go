@@ -171,6 +171,7 @@ func (c *linuxContainer) Set(config configs.Config) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.config = &config
+	logrus.Debugf("setting cgroups")
 	return c.cgroupManager.Set(c.config)
 }
 
@@ -741,6 +742,7 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 }
 
 func (c *linuxContainer) criuApplyCgroups(pid int, req *criurpc.CriuReq) error {
+	logrus.Debugf("criu apply cgroups")
 	if err := c.cgroupManager.Apply(pid); err != nil {
 		return err
 	}
