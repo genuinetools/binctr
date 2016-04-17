@@ -12,6 +12,7 @@ import (
 	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -44,9 +45,10 @@ var (
 	pidFile     string
 	root        string
 
-	allocateTty bool
-	readonly    bool
-	detach      bool
+	allocateTty      bool
+	detach           bool
+	readonly         bool
+	useSystemdCgroup bool
 
 	hooks     specs.Hooks
 	hookflags stringSlice
@@ -122,6 +124,8 @@ func init() {
 
 	flag.BoolVar(&allocateTty, "t", true, "allocate a tty for the container")
 	flag.BoolVar(&detach, "d", false, "detach from the container's process")
+	// TODO (jess): do not enable this flag, the error is very gross on systemd
+	// flag.BoolVar(&useSystemdCgroup, "systemd-cgroup", false, "enable systemd cgroup support")
 	flag.BoolVar(&readonly, "read-only", false, "make container filesystem readonly")
 
 	flag.BoolVar(&version, "version", false, "print version and exit")
@@ -200,7 +204,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	status, err := startContainer(spec, containerID, pidFile, detach)
+	status, err := startContainer(spec, containerID, pidFile, detach, useSystemdCgroup)
 	if err != nil {
 		logrus.Fatal(err)
 	}

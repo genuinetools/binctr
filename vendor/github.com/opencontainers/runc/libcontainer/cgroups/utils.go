@@ -13,9 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
-	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 const cgroupNamePrefix = "name="
@@ -291,21 +289,10 @@ func PathExists(path string) bool {
 }
 
 func EnterPid(cgroupPaths map[string]string, pid int) error {
-	// get the current user
-	u, err := user.CurrentUser()
-	if err != nil {
-		return err
-	}
 	for _, path := range cgroupPaths {
 		if PathExists(path) {
-			cgtasks := filepath.Join(path, "tasks")
-			// Chown the tasks file so that the user/group can enter the container.
-			if err := os.Chown(cgtasks, u.Uid, u.Gid); err != nil {
-				return fmt.Errorf("failed to chown %s to %d:%d -> %v", cgtasks, u.Uid, u.Gid, err)
-			}
 			if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"),
 				[]byte(strconv.Itoa(pid)), 0700); err != nil {
-				logrus.Debug("cgroups/utils.go: ", err)
 				return err
 			}
 		}

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	libcontainerUtils "github.com/opencontainers/runc/libcontainer/utils"
@@ -28,7 +27,6 @@ func (s *CpusetGroup) Apply(d *cgroupData) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	logrus.Debugf("apply cpuset dir is %s", dir)
 	return s.ApplyDir(dir, d.config, d.pid)
 }
 
@@ -67,7 +65,6 @@ func (s *CpusetGroup) ApplyDir(dir string, cgroup *configs.Cgroup, pid int) erro
 	if err := s.ensureParent(dir, root); err != nil {
 		return err
 	}
-
 	// because we are not using d.join we need to place the pid into the procs file
 	// unlike the other subsystems
 	if err := writeFile(dir, "cgroup.procs", strconv.Itoa(pid)); err != nil {

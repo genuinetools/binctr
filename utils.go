@@ -9,46 +9,39 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-var container libcontainer.Container
-
-func createContainer(id string, spec *specs.Spec) (libcontainer.Container, error) {
+// startContainer starts the container. Returns the exit status or -1 and an
+// error. Signals sent to the current process will be forwarded to container.
+func startContainer(spec *specs.Spec, id, pidFile string, detach, useSystemdCgroup bool) (int, error) {
 	// create the libcontainer config
 	config, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		CgroupName:       id,
-		UseSystemdCgroup: false,
+		UseSystemdCgroup: useSystemdCgroup,
 		NoPivotRoot:      false,
 		Spec:             spec,
 	})
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
 	if _, err := os.Stat(config.Rootfs); err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("rootfs (%q) does not exist", config.Rootfs)
+			return -1, fmt.Errorf("rootfs (%q) does not exist", config.Rootfs)
 		}
-		return nil, err
+		return -1, err
 	}
 
-	logrus.Debugf("loading factory")
-	factory, err := loadFactory()
+	factory, err := loadFactory(useSystemdCgroup)
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
-	logrus.Debugf("creating factory")
-	return factory.Create(id, config)
-}
-
-// startContainer starts the container. Returns the exit status or -1 and an
-// error. Signals sent to the current process will be forwarded to container.
-func startContainer(spec *specs.Spec, id, pidFile string, detach bool) (int, error) {
-	container, err := createContainer(id, spec)
+	container, err := factory.Create(id, config)
 	if err != nil {
 		return -1, err
 	}
@@ -68,17 +61,23 @@ func startContainer(spec *specs.Spec, id, pidFile string, detach bool) (int, err
 		pidFile:         pidFile,
 		listenFDs:       listenFDs,
 	}
-	logrus.Debugf("running %#v", *r)
 	return r.run(&spec.Process)
 }
 
 // loadFactory returns the configured factory instance for execing containers.
-func loadFactory() (libcontainer.Factory, error) {
+func loadFactory(useSystemdCgroup bool) (libcontainer.Factory, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
 	cgroupManager := libcontainer.Cgroupfs
+	if useSystemdCgroup {
+		if systemd.UseSystemd() {
+			cgroupManager = libcontainer.SystemdCgroups
+		} else {
+			return nil, fmt.Errorf("systemd cgroup flag passed, but systemd support for managing cgroups is not available")
+		}
+	}
 	return libcontainer.New(abs, cgroupManager, func(l *libcontainer.LinuxFactory) error {
 		return nil
 	})
@@ -185,7 +184,6 @@ type runner struct {
 }
 
 func (r *runner) run(config *specs.Process) (int, error) {
-	logrus.Debugf("runner new process")
 	process, err := newProcess(*config)
 	if err != nil {
 		r.destroy()
@@ -195,26 +193,22 @@ func (r *runner) run(config *specs.Process) (int, error) {
 		process.Env = append(process.Env, fmt.Sprintf("LISTEN_FDS=%d", len(r.listenFDs)), "LISTEN_PID=1")
 		process.ExtraFiles = append(process.ExtraFiles, r.listenFDs...)
 	}
-	logrus.Debugf("runner hostuid")
 	rootuid, err := r.container.Config().HostUID()
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
-	logrus.Debugf("runner setupio")
 	tty, err := setupIO(process, rootuid, r.console, config.Terminal, r.detach)
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
 	handler := newSignalHandler(tty, r.enableSubreaper)
-	logrus.Debugf("container start, %#v", r.container)
 	if err := r.container.Start(process); err != nil {
 		r.destroy()
 		tty.Close()
 		return -1, err
 	}
-	logrus.Debugf("close post start")
 	if err := tty.ClosePostStart(); err != nil {
 		r.terminate(process)
 		r.destroy()
@@ -233,7 +227,6 @@ func (r *runner) run(config *specs.Process) (int, error) {
 		tty.Close()
 		return 0, nil
 	}
-	logrus.Debugf("forward handler")
 	status, err := handler.forward(process)
 	if err != nil {
 		r.terminate(process)
