@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
@@ -248,9 +247,6 @@ func (p *initProcess) start() error {
 		return newSystemError(err)
 	}
 	p.setExternalDescriptors(fds)
-
-	logrus.Debugf("starting process apply cgroups")
-
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
 	if err := p.manager.Apply(p.pid()); err != nil {
