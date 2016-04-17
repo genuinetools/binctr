@@ -12,6 +12,11 @@ You may have noticed you can't file an issue. That's because this is using a cra
 person's (aka my) fork of libcontainer and until I get the patches into upstream
 there's no way in hell I'm fielding issues from whoever is crazy enough to try this.
 
+If you are interested, I have started a thread on the
+[mailing list](https://groups.google.com/a/opencontainers.org/forum/#!topic/dev/yutVaSLcqWI)
+with my proposed steps to make this a reality. Note, adding a `+1` is _not_ of any
+value to anyone though.
+
 
 **Nginx running with my user "jessie".**
 
