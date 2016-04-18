@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
@@ -226,6 +227,10 @@ func (p *initProcess) execSetns() error {
 
 func (p *initProcess) start() error {
 	defer p.parentPipe.Close()
+	if logrus.GetLevel() == logrus.DebugLevel {
+		p.cmd.Stdout = os.Stdout
+		p.cmd.Stderr = os.Stderr
+	}
 	err := p.cmd.Start()
 	p.process.ops = p
 	p.childPipe.Close()
