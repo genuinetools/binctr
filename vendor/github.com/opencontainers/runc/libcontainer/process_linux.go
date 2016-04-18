@@ -255,7 +255,8 @@ func (p *initProcess) start() error {
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
 	if err := p.manager.Apply(p.pid()); err != nil {
-		return newSystemError(err)
+		logrus.Debugf("cgroups apply err: %v", err)
+		// return newSystemError(err)
 	}
 	defer func() {
 		if err != nil {
