@@ -54,23 +54,29 @@ $ ./busybox --read-only
 ### Running with custom commands & args
 
 ```console
-# let's make an nginx binary
-$ make static IMAGE=nginx
-Static container created at: ./bin/nginx
-Run with ./bin/nginx
+# let's make an small web server binary
+$ make static IMAGE=r.j3ss.co/hello
+Static container created at: ./bin/hello
+Run with ./bin/hello
 
-$ ./bin/nginx nginx -g "daemon off;"
+$ ./bin/hello /hello
+2016/04/18 04:59:25 Starting server on port:  8080
 
-# But we have no networking! Don't worry we can fix this
+# But we have no networking! How can we reach it! Don't worry we can fix this
 # Let's install my super cool binary for setting up networking in a container
 $ go get github.com/jfrazelle/netns
 
 # now we can add this as a prestart hook
-$ ./bin/nginx --hook prestart:netns nginx -g "daemon off;"
+$ ./bin/hello --hook prestart:netns /hello
+2016/04/18 04:59:25 Starting server on port:  8080
 
 # let's get the ip file
 $ cat .ip
 172.19.0.10
+
+# we can curl it
+$ curl -sSL $(cat .ip):8080
+Hello World!
 
 Success!
 ```
