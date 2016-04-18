@@ -40,7 +40,6 @@ static: $(BINDIR) rootfs.go
 	@echo "+ $@"
 	CGO_ENABLED=1 go build -tags "$(BUILDTAGS) cgo static_build" \
 		-ldflags "-w -extldflags -static ${LDFLAGS}" -o bin/$(notdir $(IMAGE)) .
-	@sudo setcap cap_chown,cap_fowner,cap_dac_override+ep ./bin/$(notdir $(IMAGE))
 	@echo "Static container created at: ./bin/$(notdir $(IMAGE))"
 	@echo "Run with ./bin/$(notdir $(IMAGE))"
 

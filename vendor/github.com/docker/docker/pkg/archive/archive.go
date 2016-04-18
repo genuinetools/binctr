@@ -421,7 +421,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			chownOpts = &TarChownOptions{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
-			return err
+			logrus.Debugf("lchown archive err: %v", err)
+			// return err
 		}
 	}
 
