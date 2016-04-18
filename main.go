@@ -34,7 +34,7 @@ const (
 
 `
 
-	defaultRoot            = "/run/binctr"
+	defaultRoot            = "/tmp/binctr"
 	defaultRootfsDir       = "rootfs"
 	defaultApparmorProfile = "docker-default"
 )
@@ -44,6 +44,7 @@ var (
 	containerID string
 	pidFile     string
 	root        string
+	passkey     string
 
 	allocateTty      bool
 	detach           bool
@@ -116,6 +117,7 @@ func init() {
 	flag.StringVar(&console, "console", console, "the pty slave path for use with the container")
 	flag.StringVar(&pidFile, "pid-file", "", "specify the file to write the process id to")
 	flag.StringVar(&root, "root", defaultRoot, "root directory of container state, should be tmpfs")
+	flag.StringVar(&passkey, "key", "", "key to decrypt the embedded tarball")
 
 	flag.Var(&hookflags, "hook", "Hooks to prefill into spec file. (ex. --hook prestart:netns)")
 
@@ -215,7 +217,7 @@ func main() {
 		},
 	}
 
-	if err := unpackRootfs(spec); err != nil {
+	if err := unpackRootfs(spec, passkey); err != nil {
 		logrus.Fatal(err)
 	}
 
