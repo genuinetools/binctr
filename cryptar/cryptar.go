@@ -1,3 +1,4 @@
+// Package cryptar implements the crypto doing dinosaur.
 package cryptar
 
 import (
@@ -51,13 +52,6 @@ func Decrypt(enctar string, key []byte) ([]byte, error) {
 }
 
 func keyToGCM(key []byte) (cipher.AEAD, error) {
-	/*hash := sha256.New()
-	if _, err := hash.Write([]byte(key)); err != nil {
-		return nil, err
-	}
-	md := hash.Sum(nil)
-	mdkey := hex.EncodeToString(md)*/
-
 	// encrypt the tar with the key
 	block, err := aes.NewCipher(key)
 	if err != nil {

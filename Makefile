@@ -48,7 +48,7 @@ image.tar:
 	docker export $(shell docker create $(DOCKER_ROOTFS_IMAGE) sh) > $@
 
 rootfs.go: image.tar
-	GOMAXPROCS=1 go run generate.go
+	GOMAXPROCS=1 go generate
 
 fmt:
 	@echo "+ $@"
