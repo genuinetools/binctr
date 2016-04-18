@@ -22,7 +22,7 @@ DOCKER_ROOTFS_IMAGE := $(IMAGE)
 LDFLAGS := ${LDFLAGS} \
 	-X main.GITCOMMIT=${GITCOMMIT} \
 	-X main.VERSION=${VERSION} \
-	-X main.IMAGE=${IMAGE} \
+	-X main.IMAGE=$(notdir $(IMAGE)) \
 	-X main.IMAGESHA=$(shell docker inspect --format "{{.Id}}" $(IMAGE))
 
 BINDIR := $(CURDIR)/bin
