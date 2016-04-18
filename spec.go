@@ -100,20 +100,6 @@ var (
 			},
 		},
 		Linux: specs.Linux{
-			UIDMappings: []specs.IDMapping{
-				{
-					HostID:      remappedUID,
-					ContainerID: 0,
-					Size:        46578392,
-				},
-			},
-			GIDMappings: []specs.IDMapping{
-				{
-					HostID:      remappedGID,
-					ContainerID: 0,
-					Size:        46578392,
-				},
-			},
 			MaskedPaths: []string{
 				"/proc/kcore",
 				"/proc/latency_stats",

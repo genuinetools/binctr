@@ -53,9 +53,6 @@ var (
 	hooks     specs.Hooks
 	hookflags stringSlice
 
-	remappedUID uint32 = 886432
-	remappedGID uint32 = 886432
-
 	debug   bool
 	version bool
 
@@ -194,11 +191,29 @@ func main() {
 	}
 
 	// set the CgroupsPath as this user
-	user, err := user.CurrentUser()
+	u, err := user.CurrentUser()
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	spec.Linux.CgroupsPath = sPtr(user.Name)
+	spec.Linux.CgroupsPath = sPtr(u.Name)
+
+	// setup UID mappings
+	spec.Linux.UIDMappings = []specs.IDMapping{
+		{
+			HostID:      uint32(u.Uid),
+			ContainerID: 0,
+			Size:        1,
+		},
+	}
+
+	// setup GID mappings
+	spec.Linux.GIDMappings = []specs.IDMapping{
+		{
+			HostID:      uint32(u.Gid),
+			ContainerID: 0,
+			Size:        1,
+		},
+	}
 
 	if err := unpackRootfs(spec); err != nil {
 		logrus.Fatal(err)

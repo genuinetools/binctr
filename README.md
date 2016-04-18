@@ -128,11 +128,3 @@ the right perms on the rootfs for the userns user**
 - **CAP_DAC_OVERRIDE**: symlinks
 
 **These can be dropped after the rootfs is unpacked and chowned.**
-
--------
-
-**Caps for libcontainer**
-
-- **CAP_SETUID**, **CAP_SETGID**: so we can write to `uid_map`, `gid_map`, in
-  `nsexec.c`
-See: http://man7.org/linux/man-pages/man7/user_namespaces.7.html
