@@ -34,7 +34,7 @@ const (
 
 `
 
-	defaultRoot            = "/run/binctr"
+	defaultRoot            = "/tmp/binctr"
 	defaultRootfsDir       = "rootfs"
 	defaultApparmorProfile = "docker-default"
 )
