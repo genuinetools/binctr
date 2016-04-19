@@ -80,3 +80,10 @@ clean: clean-rootfs
 install:
 	@echo "+ $@"
 	@go install .
+
+sign:
+	@echo "+ $@"
+	@gpg --sign --output ./bin/$(notdir $(IMAGE)).sig \
+		--armor --detach-sig \
+		--cipher-algo AES256 --digest-algo SHA256 \
+		./bin/$(notdir $(IMAGE))
