@@ -2,7 +2,7 @@
 PREFIX?=$(shell pwd)
 BUILDTAGS=seccomp apparmor
 
-PROJECT := github.com/jfrazelle/binctr
+PROJECT := github.com/jessfraz/binctr
 VENDOR := vendor
 
 # Variable to get the current version.

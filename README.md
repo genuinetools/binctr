@@ -66,7 +66,7 @@ $ ./bin/hello /hello
 
 # But we have no networking! How can we reach it! Don't worry we can fix this
 # Let's install my super cool binary for setting up networking in a container
-$ go get github.com/jfrazelle/netns
+$ go get github.com/jessfraz/netns
 
 # now we can add this as a prestart hook
 $ ./bin/hello --hook prestart:netns /hello
