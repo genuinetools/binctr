@@ -183,7 +183,7 @@ func main() {
 	// install the default apparmor profile
 	if apparmor.IsEnabled() {
 		// check if we have the docker-default apparmor profile loaded
-		if err := aaprofile.IsLoaded(defaultApparmorProfile); err != nil {
+		if _, err := aaprofile.IsLoaded(defaultApparmorProfile); err != nil {
 			logrus.Warnf("AppArmor enabled on system but the %s profile is not loaded. apparmor_parser needs root to load a profile so we can't do it for you.", defaultApparmorProfile)
 		} else {
 			spec.Process.ApparmorProfile = defaultApparmorProfile
