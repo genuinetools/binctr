@@ -37,6 +37,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/docker/docker/pkg/aaparser",
+			"repository": "https://github.com/docker/docker",
+			"vcs": "git",
+			"revision": "630b9a45d2537a21fa5ba3249a3c780d2b6a00fc",
+			"branch": "master",
+			"path": "pkg/aaparser",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/docker/docker/pkg/archive",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "git",
@@ -118,12 +127,30 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/docker/docker/pkg/templates",
+			"repository": "https://github.com/docker/docker",
+			"vcs": "git",
+			"revision": "630b9a45d2537a21fa5ba3249a3c780d2b6a00fc",
+			"branch": "master",
+			"path": "pkg/templates",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/docker/docker/pkg/term",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "git",
 			"revision": "2a95488f7843a773de2b541a47d9b971a635bfff",
 			"branch": "master",
 			"path": "/pkg/term",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/docker/docker/profiles/apparmor",
+			"repository": "https://github.com/docker/docker",
+			"vcs": "git",
+			"revision": "630b9a45d2537a21fa5ba3249a3c780d2b6a00fc",
+			"branch": "master",
+			"path": "/profiles/apparmor",
 			"notests": true
 		},
 		{
