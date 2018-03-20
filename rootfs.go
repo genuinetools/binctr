@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,21 +12,24 @@ import (
 )
 
 func unpackRootfs(spec *specs.Spec) error {
-	data, err := base64.StdEncoding.DecodeString(image.DATA)
-	if err != nil {
-		return err
-	}
-
+	// Make the rootfs directory.
 	if err := os.MkdirAll(defaultRootfsDir, 0755); err != nil {
 		return err
 	}
 
+	// Get the embedded tarball.
+	data, err := image.Data()
+	if err != nil {
+		return err
+	}
+
+	// Unpack the tarball.
 	r := bytes.NewReader(data)
 	if err := archive.Untar(r, defaultRootfsDir, &archive.TarOptions{NoLchown: true}); err != nil {
 		return err
 	}
 
-	// write a resolv.conf
+	// Write a resolv.conf.
 	if err := ioutil.WriteFile(filepath.Join(defaultRootfsDir, "etc", "resolv.conf"), []byte("nameserver 8.8.8.8\nnameserver 8.8.4.4"), 0755); err != nil {
 		return err
 	}

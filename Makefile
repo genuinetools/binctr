@@ -12,7 +12,7 @@ BUILDTAGS := seccomp apparmor
 BUILDDIR := ${PREFIX}/cross
 
 IMAGE := alpine
-IMAGE_DATA_FILE := image/data.go
+IMAGE_DATA_FILE := image/bindata.go
 
 # Populate version variables
 # Add to compile time flags
