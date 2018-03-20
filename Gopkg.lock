@@ -2,10 +2,31 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/Azure/go-ansiterm"
+  packages = [
+    ".",
+    "winterm"
+  ]
+  revision = "d6e3b3328b783f23731bc4d058875b0371ff8109"
+
+[[projects]]
   name = "github.com/Microsoft/go-winio"
   packages = ["."]
   revision = "7da180ee92d8bd8bb8c37fc560e673e6557c392f"
   version = "v0.4.7"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/Nvveen/Gotty"
+  packages = ["."]
+  revision = "cd527374f1e5bff4938207604a14f2e38a9cf512"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
 
 [[projects]]
   branch = "master"
@@ -43,21 +64,113 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/docker/cli"
+  packages = [
+    "cli/config/configfile",
+    "cli/config/credentials",
+    "opts"
+  ]
+  revision = "c0ffb9491cdffb628e18bb491b566255987fd28d"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/docker/distribution"
+  packages = [
+    ".",
+    "context",
+    "digestset",
+    "manifest",
+    "manifest/manifestlist",
+    "manifest/schema1",
+    "manifest/schema2",
+    "metrics",
+    "reference",
+    "registry/api/errcode",
+    "registry/api/v2",
+    "registry/client",
+    "registry/client/auth",
+    "registry/client/auth/challenge",
+    "registry/client/transport",
+    "registry/storage",
+    "registry/storage/cache",
+    "registry/storage/cache/memory",
+    "registry/storage/driver",
+    "registry/storage/driver/base",
+    "registry/storage/driver/factory",
+    "registry/storage/driver/filesystem",
+    "uuid"
+  ]
+  revision = "607ae5d128a82f280e8c7f453d5fb30c535bda17"
+
+[[projects]]
+  branch = "master"
   name = "github.com/docker/docker"
   packages = [
+    "api/types",
+    "api/types/blkiodev",
+    "api/types/container",
+    "api/types/filters",
+    "api/types/mount",
+    "api/types/network",
+    "api/types/registry",
+    "api/types/strslice",
+    "api/types/swarm",
+    "api/types/swarm/runtime",
+    "api/types/versions",
+    "errdefs",
     "pkg/aaparser",
     "pkg/archive",
     "pkg/fileutils",
+    "pkg/homedir",
     "pkg/idtools",
     "pkg/ioutils",
+    "pkg/jsonmessage",
     "pkg/longpath",
     "pkg/mount",
     "pkg/pools",
+    "pkg/stringid",
     "pkg/system",
-    "profiles/apparmor"
+    "pkg/tarsum",
+    "pkg/term",
+    "pkg/term/windows",
+    "profiles/apparmor",
+    "registry",
+    "registry/resumable"
   ]
   revision = "0c1006f1abc1af7aa6b9847754370d054dfa6c68"
   source = "github.com/moby/moby"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/docker/docker-ce"
+  packages = ["components/cli/cli/config"]
+  revision = "4836f8c6fc8cb4bd4de48f019f772b683b94ed71"
+
+[[projects]]
+  name = "github.com/docker/docker-credential-helpers"
+  packages = [
+    "client",
+    "credentials",
+    "pass"
+  ]
+  revision = "d68f9aeca33f5fd3f08eeae5e9d175edf4e731d1"
+  version = "v0.6.0"
+
+[[projects]]
+  name = "github.com/docker/go-connections"
+  packages = [
+    "nat",
+    "sockets",
+    "tlsconfig"
+  ]
+  revision = "3ede32e2033de7505e6500d6c868c2b9ed9f169d"
+  version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/docker/go-metrics"
+  packages = ["."]
+  revision = "399ea8c73916000c64c2c76e8da00ca82f8387ab"
 
 [[projects]]
   name = "github.com/docker/go-units"
@@ -66,10 +179,31 @@
   version = "v0.3.2"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/docker/libtrust"
+  packages = ["."]
+  revision = "aabc10ec26b754e797f9028f4589c5b7bd90dc20"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/genuinetools/reg"
+  packages = [
+    "registry",
+    "repoutils"
+  ]
+  revision = "dd16b5bfefa6d5aac88f1104433f272392fe0aa3"
+
+[[projects]]
   name = "github.com/godbus/dbus"
   packages = ["."]
   revision = "a389bdde4dd695d414e47b755e95e72b7826432c"
   version = "v4.1.0"
+
+[[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = ["proto"]
+  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -78,10 +212,28 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/gorilla/context"
+  packages = ["."]
+  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
+  version = "v1.1"
+
+[[projects]]
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
+  version = "v1.6.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/jteeuwen/go-bindata"
   packages = ["."]
   revision = "6025e8de665b31fa74ab1a66f2cddd8c0abf887e"
+
+[[projects]]
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -145,10 +297,52 @@
   version = "v1.0.0-rc1"
 
 [[projects]]
+  name = "github.com/peterhellberg/link"
+  packages = ["."]
+  revision = "d1cebc7ea14a5fc0de7cb4a45acae773161642c6"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/client_golang"
+  packages = [
+    "prometheus",
+    "prometheus/promhttp"
+  ]
+  revision = "d49167c4b9f3c4451707560c5c71471ff5291aaa"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/common"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model"
+  ]
+  revision = "e4aa40a9169a88835b849a6efb71e05dc04b88f0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "internal/util",
+    "nfs",
+    "xfs"
+  ]
+  revision = "54d17b57dd7d4a3aa092476596b3f8a933bde349"
 
 [[projects]]
   branch = "master"
@@ -161,6 +355,16 @@
   packages = ["."]
   revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
   version = "v1.0.5"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/stevvooe/resumable"
+  packages = [
+    ".",
+    "sha256",
+    "sha512"
+  ]
+  revision = "2aaf90b2ceea5072cb503ef2a620b08ff3119870"
 
 [[projects]]
   branch = "master"
@@ -192,7 +396,10 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context"]
+  packages = [
+    "context",
+    "proxy"
+  ]
   revision = "6078986fec03a1dcc236c34816c71b0e05018fda"
 
 [[projects]]
@@ -207,6 +414,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9b1a33b507730008bd6eab13779a1a39519098e5c5f30b9fe15ce8c5cd2b6074"
+  inputs-digest = "3bfe517dda3080944417768fdbeb5f1286fb1370a35c1e6c1bb9c3e2d45961f9"
   solver-name = "gps-cdcl"
   solver-version = 1

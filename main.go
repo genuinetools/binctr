@@ -8,14 +8,10 @@ import (
 	"runtime"
 	"strings"
 
-	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/genuinetools/binctr/container"
-	"github.com/genuinetools/binctr/image"
 	"github.com/genuinetools/binctr/version"
 	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/apparmor"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
-	"github.com/opencontainers/runc/libcontainer/specconv"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -31,15 +27,13 @@ const (
  Fully static, self-contained container including the rootfs
  that can be run by an unprivileged user.
 
- Embedded Image: %s - %s
  Version: %s
  Build: %s
 
 `
 
-	defaultRoot            = "/tmp/binctr"
-	defaultRootfsDir       = "rootfs"
-	defaultApparmorProfile = "docker-default"
+	defaultRoot      = "/tmp/binctr"
+	defaultRootfsDir = "rootfs"
 )
 
 var (
@@ -103,7 +97,7 @@ func (s stringSlice) ParseHooks() (hooks specs.Hooks, err error) {
 
 func init() {
 	// Parse flags
-	flag.StringVar(&containerID, "id", image.NAME, "container ID")
+	flag.StringVar(&containerID, "id", "binctr", "container ID")
 	flag.StringVar(&pidFile, "pid-file", "", "specify the file to write the process id to")
 	flag.StringVar(&root, "root", defaultRoot, "root directory of container state, should be tmpfs")
 
@@ -119,14 +113,14 @@ func init() {
 	flag.BoolVar(&debug, "D", false, "run in debug mode")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, image.NAME, image.SHA, version.VERSION, version.GITCOMMIT))
+		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, version.VERSION, version.GITCOMMIT))
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
 
 	if vrsn {
-		fmt.Printf("%s, commit: %s, image: %s, image digest: %s", version.VERSION, version.GITCOMMIT, image.NAME, image.SHA)
+		fmt.Printf("%s, commit: %s", version.VERSION, version.GITCOMMIT)
 		os.Exit(0)
 	}
 
@@ -151,38 +145,14 @@ func main() {
 		return
 	}
 
-	// Initialize the spec.
-	spec := specconv.Example()
-
-	// Set the spec to be rootless.
-	specconv.ToRootless(spec)
-
-	// Setup readonly fs in spec.
-	spec.Root.Readonly = readonly
-
-	// Setup tty in spec.
-	spec.Process.Terminal = allocateTty
-
-	// Pass in any hooks to the spec.
-	spec.Hooks = &hooks
-
-	// Set the default seccomp profile.
-	spec.Linux.Seccomp = defaultSeccompProfile
-
-	// Install the default apparmor profile.
-	if apparmor.IsEnabled() {
-		// Check if we have the docker-default apparmor profile loaded.
-		if _, err := aaprofile.IsLoaded(defaultApparmorProfile); err != nil {
-			logrus.Warnf("AppArmor enabled on system but the %s profile is not loaded. apparmor_parser needs root to load a profile so we can't do it for you.", defaultApparmorProfile)
-		} else {
-			spec.Process.ApparmorProfile = defaultApparmorProfile
-		}
+	// Create a new container spec with the following options.
+	opts := container.SpecOpts{
+		Rootless: true,
+		Readonly: readonly,
+		Terminal: allocateTty,
+		Hooks:    &hooks,
 	}
-
-	// Unpack the rootfs.
-	if err := unpackRootfs(spec); err != nil {
-		logrus.Fatal(err)
-	}
+	spec := container.Spec(opts)
 
 	// Initialize the container object.
 	c := &container.Container{
@@ -193,6 +163,11 @@ func main() {
 		Root:          root,
 		Detach:        detach,
 		Rootless:      true,
+	}
+
+	// Unpack the rootfs.
+	if err := c.UnpackRootfs(defaultRootfsDir, Asset); err != nil {
+		logrus.Fatal(err)
 	}
 
 	// Run the container.

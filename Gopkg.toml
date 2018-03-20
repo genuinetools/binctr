@@ -52,3 +52,15 @@
 [[constraint]]
   name = "github.com/jteeuwen/go-bindata"
   branch = "master"
+
+[[constraint]]
+  name = "github.com/genuinetools/reg"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/docker/distribution"
+  branch = "master"
+
+[[override]]
+  name = "github.com/prometheus/client_golang"
+  branch = "master"
