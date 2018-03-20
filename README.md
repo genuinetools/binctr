@@ -12,9 +12,7 @@ Check out the blog post: [blog.jessfraz.com/post/getting-towards-real-sandbox-co
 This is based off a crazy idea from [@crosbymichael](https://github.com/crosbymichael)
 who first embedded an image in a binary :D
 
-**HISTORY**
-
-This project used to use a POC fork of libcontainer until [@cyphar](https://github.com/cyphar)
+**HISTORY:** This project used to use a POC fork of libcontainer until [@cyphar](https://github.com/cyphar)
 got rootless containers into upstream! Woohoo!
 Check out the original thread on the 
 [mailing list](https://groups.google.com/a/opencontainers.org/forum/#!topic/dev/yutVaSLcqWI).
