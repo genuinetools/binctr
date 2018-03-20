@@ -1,6 +1,8 @@
 # binctr
 
 [![Build Status](https://travis-ci.org/genuinetools/binctr.svg?branch=master)](https://travis-ci.org/genuinetools/binctr)
+[![Go Report Card](https://goreportcard.com/badge/github.com/genuinetools/binctr)](https://goreportcard.com/report/github.com/genuinetools/binctr)
+[![GoDoc](https://godoc.org/github.com/genuinetools/binctr?status.svg)](https://godoc.org/github.com/genuinetools/binctr)
 
 Create fully static, including rootfs embedded, binaries that pop you directly
 into a container. **Can be run by an unprivileged user.**

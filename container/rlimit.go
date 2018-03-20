@@ -1,6 +1,11 @@
-package main
+package container
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/opencontainers/runc/libcontainer/configs"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
 
 const (
 	rLimitCPU        = iota // CPU time in sec
@@ -46,4 +51,16 @@ func strToRlimit(key string) (int, error) {
 		return 0, fmt.Errorf("wrong rlimit value: %s", key)
 	}
 	return rl, nil
+}
+
+func createLibContainerRlimit(rlimit specs.POSIXRlimit) (configs.Rlimit, error) {
+	rl, err := strToRlimit(rlimit.Type)
+	if err != nil {
+		return configs.Rlimit{}, err
+	}
+	return configs.Rlimit{
+		Type: rl,
+		Hard: rlimit.Hard,
+		Soft: rlimit.Soft,
+	}, nil
 }
