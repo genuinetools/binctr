@@ -17,6 +17,14 @@ got rootless containers into upstream! Woohoo!
 Check out the original thread on the 
 [mailing list](https://groups.google.com/a/opencontainers.org/forum/#!topic/dev/yutVaSLcqWI).
 
+### Checking out this repo
+
+You need to install [`git-lfs`](https://github.com/git-lfs/git-lfs/wiki/Installation).
+
+```console
+$ git lfs clone git@github.com:genuinetools/binctr.git
+```
+
 ### Building
 
 You will need `libapparmor-dev` and `libseccomp-dev`.
