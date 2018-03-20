@@ -1,82 +1,142 @@
-.PHONY: clean clean-rootfs all fmt vet lint build test install image.tar rootfs.go static
+# Set an output prefix, which is the local directory if not specified
 PREFIX?=$(shell pwd)
 BUILDTAGS=seccomp apparmor
 
-PROJECT := github.com/jessfraz/binctr
-VENDOR := vendor
+# Setup name variables for the package/tool
+NAME := binctr
+PKG := github.com/genuinetools/$(NAME)
 
-# Variable to get the current version.
-VERSION := $(shell cat VERSION)
+# Set any default go build tags
+BUILDTAGS :=
 
-# Variable to set the current git commit.
+# Set the build dir, where built cross-compiled binaries will be output
+BUILDDIR := ${PREFIX}/cross
+
+# Populate version variables
+# Add to compile time flags
+VERSION := $(shell cat VERSION.txt)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
-GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
-GITCOMMIT := $(GITCOMMIT)-dirty
+	GITCOMMIT := $(GITCOMMIT)-dirty
 endif
+CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
+GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
+GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 
-IMAGE := alpine
-DOCKER_ROOTFS_IMAGE := $(IMAGE)
+# List the GOOS and GOARCH to build
+GOOSARCHES = darwin/amd64 darwin/386 freebsd/amd64 freebsd/386 linux/arm linux/arm64 linux/amd64 linux/386 solaris/amd64 windows/amd64 windows/386
 
-LDFLAGS := ${LDFLAGS} \
-	-X main.GITCOMMIT=${GITCOMMIT} \
-	-X main.VERSION=${VERSION} \
-	-X main.IMAGE=$(notdir $(IMAGE)) \
-	-X main.IMAGESHA=$(shell docker inspect --format "{{.Id}}" $(IMAGE))
+all: clean build fmt lint test staticcheck vet install ## Runs a clean, build, fmt, lint, test, staticcheck, vet and install
 
-BINDIR := $(CURDIR)/bin
+.PHONY: build
+build: $(NAME) ## Builds a dynamic executable or package
 
-all: clean static fmt lint test vet install
-
-build: rootfs.go
+$(NAME): *.go VERSION.txt
 	@echo "+ $@"
-	go build -tags "$(BUILDTAGS)" -ldflags "${LDFLAGS}" .
+	go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(NAME) .
 
-$(BINDIR):
-	@mkdir -p $@
-
-static: $(BINDIR) rootfs.go
+.PHONY: static
+static: ## Builds a static executable
 	@echo "+ $@"
-	CGO_ENABLED=1 go build -tags "$(BUILDTAGS) cgo static_build" \
-		-ldflags "-w -extldflags -static ${LDFLAGS}" -o bin/$(notdir $(IMAGE)) .
-	@echo "Static container created at: ./bin/$(notdir $(IMAGE))"
-	@echo "Run with ./bin/$(notdir $(IMAGE))"
+	CGO_ENABLED=0 go build \
+				-tags "$(BUILDTAGS) static_build" \
+				${GO_LDFLAGS_STATIC} -o $(NAME) .
 
-image.tar:
-	docker pull --disable-content-trust=false $(DOCKER_ROOTFS_IMAGE)
-	docker export $(shell docker create $(DOCKER_ROOTFS_IMAGE) sh) > $@
-
-rootfs.go: image.tar
-	GOMAXPROCS=1 go generate
-
-fmt:
+.PHONY: fmt
+fmt: ## Verifies all files have men `gofmt`ed
 	@echo "+ $@"
-	@gofmt -s -l . | grep -v $(VENDOR) | tee /dev/stderr
+	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
 
-lint:
+.PHONY: lint
+lint: ## Verifies `golint` passes
 	@echo "+ $@"
-	@golint ./... | grep -v $(VENDOR) | tee /dev/stderr
+	@golint ./... | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
 
-test: fmt lint vet
+.PHONY: test
+test: ## Runs the go tests
 	@echo "+ $@"
-	@go test -v -tags "$(BUILDTAGS) cgo" $(shell go list ./... | grep -v $(VENDOR))
+	@go test -v -tags "$(BUILDTAGS) cgo" $(shell go list ./... | grep -v vendor)
 
-vet:
+.PHONY: vet
+vet: ## Verifies `go vet` passes
 	@echo "+ $@"
-	@go vet $(shell go list ./... | grep -v $(VENDOR))
+	@go vet $(shell go list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
 
-clean-rootfs:
-	@sudo $(RM) -r rootfs
-
-clean: clean-rootfs
+.PHONY: staticcheck
+staticcheck: ## Verifies `staticcheck` passes
 	@echo "+ $@"
-	@$(RM) binctr
-	@$(RM) *.tar
-	@$(RM) rootfs.go
-	@$(RM) -r $(BINDIR)
-	-@docker rm $(shell docker ps -aq) /dev/null 2>&1
+	@staticcheck $(shell go list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
 
-install:
+.PHONY: cover
+cover: ## Runs go test with coverage
+	@echo "" > coverage.txt
+	@for d in $(shell go list ./... | grep -v vendor); do \
+		go test -race -coverprofile=profile.out -covermode=atomic "$$d"; \
+		if [ -f profile.out ]; then \
+			cat profile.out >> coverage.txt; \
+			rm profile.out; \
+		fi; \
+	done;
+
+.PHONY: install
+install: ## Installs the executable or package
 	@echo "+ $@"
-	@go install .
+	go install -a -tags "$(BUILDTAGS)" ${GO_LDFLAGS} .
+
+define buildpretty
+mkdir -p $(BUILDDIR)/$(1)/$(2);
+GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 go build \
+	 -o $(BUILDDIR)/$(1)/$(2)/$(NAME) \
+	 -a -tags "$(BUILDTAGS) static_build netgo" \
+	 -installsuffix netgo ${GO_LDFLAGS_STATIC} .;
+md5sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).md5;
+sha256sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).sha256;
+endef
+
+.PHONY: cross
+cross: *.go VERSION.txt ## Builds the cross-compiled binaries, creating a clean directory structure (eg. GOOS/GOARCH/binary)
+	@echo "+ $@"
+	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildpretty,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
+
+define buildrelease
+GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 go build \
+	 -o $(BUILDDIR)/$(NAME)-$(1)-$(2) \
+	 -a -tags "$(BUILDTAGS) static_build netgo" \
+	 -installsuffix netgo ${GO_LDFLAGS_STATIC} .;
+md5sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).md5;
+sha256sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).sha256;
+endef
+
+.PHONY: release
+release: *.go VERSION.txt ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+	@echo "+ $@"
+	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildrelease,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
+
+.PHONY: bump-version
+BUMP := patch
+bump-version: ## Bump the version in the version file. Set BUMP to [ patch | major | minor ]
+	@go get -u github.com/jessfraz/junk/sembump # update sembump tool
+	$(eval NEW_VERSION = $(shell sembump --kind $(BUMP) $(VERSION)))
+	@echo "Bumping VERSION.txt from $(VERSION) to $(NEW_VERSION)"
+	echo $(NEW_VERSION) > VERSION.txt
+	@echo "Updating links to download binaries in README.md"
+	sed -i s/$(VERSION)/$(NEW_VERSION)/g README.md
+	git add VERSION.txt README.md
+	git commit -vsam "Bump version to $(NEW_VERSION)"
+	@echo "Run make tag to create and push the tag for new version $(NEW_VERSION)"
+
+.PHONY: tag
+tag: ## Create a new git tag to prepare to build a release
+	git tag -sa $(VERSION) -m "$(VERSION)"
+	@echo "Run git push origin $(VERSION) to push your new tag to GitHub and trigger a travis build."
+
+.PHONY: clean
+clean: ## Cleanup any build binaries or packages
+	@echo "+ $@"
+	$(RM) $(NAME)
+	$(RM) -r $(BUILDDIR)
+
+.PHONY: help
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	aaprofile "github.com/docker/docker/profiles/apparmor"
+	"github.com/genuinetools/binctr/version"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
@@ -31,7 +32,7 @@ const (
 
  Embedded Image: %s - %s
  Version: %s
- GitCommit: %s
+ Build: %s
 
 `
 
@@ -53,14 +54,8 @@ var (
 	hooks     specs.Hooks
 	hookflags stringSlice
 
-	debug   bool
-	version bool
-
-	// GITCOMMIT is git commit the binary was compiled against.
-	GITCOMMIT = ""
-
-	// VERSION is the binary version.
-	VERSION = "v0.1.0"
+	debug bool
+	vrsn  bool
 
 	// IMAGE is the name of the image that is embedded at compile time.
 	IMAGE = "alpine"
@@ -123,19 +118,19 @@ func init() {
 	flag.BoolVar(&detach, "d", false, "detach from the container's process")
 	flag.BoolVar(&readonly, "read-only", false, "make container filesystem readonly")
 
-	flag.BoolVar(&version, "version", false, "print version and exit")
-	flag.BoolVar(&version, "v", false, "print version and exit (shorthand)")
+	flag.BoolVar(&vrsn, "version", false, "print version and exit")
+	flag.BoolVar(&vrsn, "v", false, "print version and exit (shorthand)")
 	flag.BoolVar(&debug, "D", false, "run in debug mode")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, IMAGE, IMAGESHA, VERSION, GITCOMMIT))
+		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, IMAGE, IMAGESHA, version.VERSION, version.GITCOMMIT))
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
 
-	if version {
-		fmt.Printf("%s, commit: %s, image: %s, image digest: %s", VERSION, GITCOMMIT, IMAGE, IMAGESHA)
+	if vrsn {
+		fmt.Printf("%s, commit: %s, image: %s, image digest: %s", version.VERSION, version.GITCOMMIT, IMAGE, IMAGESHA)
 		os.Exit(0)
 	}
 
