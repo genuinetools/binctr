@@ -46,7 +46,7 @@ $(BUILDDIR)/$(notdir $(IMAGE)): $(BUILDDIR) $(IMAGE_DATA_FILE) *.go VERSION.txt
 .PHONY: fmt
 fmt: ## Verifies all files have men `gofmt`ed
 	@echo "+ $@"
-	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
+	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | grep -v bindata.go | tee /dev/stderr
 
 .PHONY: lint
 lint: ## Verifies `golint` passes
