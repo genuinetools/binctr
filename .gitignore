@@ -4,8 +4,6 @@
 *.o
 *.a
 *.so
-*.swo
-*.swp
 
 # Folders
 _obj
@@ -45,6 +43,12 @@ Icon
 .Trashes
 
 binctr
+cross/
+
+# Go coverage results
+coverage.txt
+profile.out
+
 *.tar
 rootfs
 config.json

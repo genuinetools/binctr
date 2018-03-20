@@ -11,6 +11,8 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
+const DATA = ""
+
 func unpackRootfs(spec *specs.Spec) error {
 	data, err := base64.StdEncoding.DecodeString(DATA)
 	if err != nil {
