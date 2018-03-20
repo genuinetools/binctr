@@ -49,7 +49,10 @@ cross/
 coverage.txt
 profile.out
 
-*.tar
 rootfs
 config.json
 .ip
+*.tar
+
+busybox
+alpine

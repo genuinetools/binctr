@@ -1,45 +1,31 @@
 # Set an output prefix, which is the local directory if not specified
 PREFIX?=$(shell pwd)
 
-# Setup name variables for the package/tool
-NAME := binctr
-PKG := github.com/genuinetools/$(NAME)
-
 # Set any default go build tags
 BUILDTAGS := seccomp apparmor
 
-# Set the build dir, where built cross-compiled binaries will be output
-BUILDDIR := ${PREFIX}/cross
-
-IMAGE := alpine
-IMAGE_DATA_FILE := container/bindata.go
-
-# Populate version variables
-# Add to compile time flags
-VERSION := $(shell cat VERSION.txt)
-GITCOMMIT := $(shell git rev-parse --short HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GITUNTRACKEDCHANGES),)
-	GITCOMMIT := $(GITCOMMIT)-dirty
-endif
-CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
-GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
-GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
+GO_LDFLAGS_STATIC=-ldflags "-w -extldflags -static"
 
 all: clean build fmt lint test staticcheck vet ## Runs a clean, build, fmt, lint, test, staticcheck, and vet
 
 .PHONY: build
-build: $(BUILDDIR)/$(notdir $(IMAGE)) ## Builds a static executable or package
+build: alpine busybox ## Builds a static executable or package
 
-$(BUILDDIR):
-	@mkdir -p $@
-
-$(BUILDDIR)/$(notdir $(IMAGE)): $(BUILDDIR) $(IMAGE_DATA_FILE) *.go VERSION.txt
+.PHONY: alpine
+alpine: generate
 	@echo "+ $@"
 	CGO_ENABLED=1 go build \
 				-tags "$(BUILDTAGS) static_build" \
-				${GO_LDFLAGS_STATIC} -o $@ .
-	@echo "Static container for $(IMAGE) created at: $@"
+				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
+	@echo "Static container for alpine created at: ./$@"
+
+.PHONY: busybox
+busybox: generate
+	@echo "+ $@"
+	CGO_ENABLED=1 go build \
+				-tags "$(BUILDTAGS) static_build" \
+				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
+	@echo "Static container for alpine created at: ./$@"
 
 .PHONY: fmt
 fmt: ## Verifies all files have men `gofmt`ed
@@ -95,15 +81,14 @@ tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
 	@echo "Run git push origin $(VERSION) to push your new tag to GitHub and trigger a travis build."
 
-.PHONY: $(IMAGE_DATA_FILE)
-$(IMAGE_DATA_FILE):
-	GOMAXPROCS=1 go generate
+.PHONY: generate
+generate:
+	GOMAXPROCS=1 go generate ./...
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
 	@echo "+ $@"
-	$(RM) $(NAME)
-	$(RM) -r $(BUILDDIR)
+	$(RM) alpine busybox
 	@sudo $(RM) -r rootfs
 
 .PHONY: help
