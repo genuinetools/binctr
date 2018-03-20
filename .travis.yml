@@ -18,7 +18,7 @@
   install:
     - go get github.com/golang/lint/golint
     - go get honnef.co/go/tools/cmd/staticcheck
-    - sudo ap update && sudo apt install -y libapparmor-dev libseccomp-dev
+    - sudo apt update && sudo apt install -y libapparmor-dev libseccomp-dev
   script:
     - make IMAGE=alpine
     - go vet $(go list ./... | grep -v vendor)
