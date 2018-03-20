@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 
 	aaprofile "github.com/docker/docker/profiles/apparmor"
+	"github.com/genuinetools/binctr/container"
 	"github.com/genuinetools/binctr/image"
 	"github.com/genuinetools/binctr/version"
 	"github.com/opencontainers/runc/libcontainer"
@@ -142,21 +142,6 @@ func init() {
 		logrus.Fatal(err)
 	}
 
-	// Convert pid-file to an absolute path so we can write to the
-	// right file after chdir to bundle.
-	if pidFile != "" {
-		pidFile, err = filepath.Abs(pidFile)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-	}
-
-	// Get the absolute path to the root.
-	root, err = filepath.Abs(root)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
 }
 
 //go:generate go run generate.go
@@ -199,8 +184,19 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	// Start the container.
-	status, err := startContainer(spec, containerID, pidFile, consoleSocket, root, detach)
+	// Initialize the container object.
+	c := &container.Container{
+		ID:            containerID,
+		Spec:          spec,
+		PIDFile:       pidFile,
+		ConsoleSocket: consoleSocket,
+		Root:          root,
+		Detach:        detach,
+		Rootless:      true,
+	}
+
+	// Run the container.
+	status, err := c.Run()
 	if err != nil {
 		logrus.Fatal(err)
 	}
