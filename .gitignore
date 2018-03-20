@@ -54,5 +54,3 @@ config.json
 .ip
 *.tar
 
-busybox
-alpine
