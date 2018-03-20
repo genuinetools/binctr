@@ -17,7 +17,7 @@ alpine: generate
 	CGO_ENABLED=1 go build \
 				-tags "$(BUILDTAGS) static_build" \
 				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
-	@echo "Static container for alpine created at: ./$@"
+	@echo "Static container for $@ created at: ./$@"
 
 .PHONY: busybox
 busybox: generate
@@ -25,7 +25,7 @@ busybox: generate
 	CGO_ENABLED=1 go build \
 				-tags "$(BUILDTAGS) static_build" \
 				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
-	@echo "Static container for alpine created at: ./$@"
+	@echo "Static container for $@ created at: ./$@"
 
 .PHONY: fmt
 fmt: ## Verifies all files have men `gofmt`ed
