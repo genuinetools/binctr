@@ -12,7 +12,7 @@ BUILDTAGS := seccomp apparmor
 BUILDDIR := ${PREFIX}/cross
 
 IMAGE := alpine
-IMAGE_DATA_FILE := image/bindata.go
+IMAGE_DATA_FILE := container/bindata.go
 
 # Populate version variables
 # Add to compile time flags
@@ -22,9 +22,7 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
 	GITCOMMIT := $(GITCOMMIT)-dirty
 endif
-CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION) \
-		 -X $(PKG)/image.NAME=$(notdir $(IMAGE)) \
-		 -X $(PKG)/image.SHA=$(shell docker inspect --format "{{.Id}}" $(IMAGE))
+CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 
@@ -97,13 +95,8 @@ tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
 	@echo "Run git push origin $(VERSION) to push your new tag to GitHub and trigger a travis build."
 
-.PHONY: image.tar
-image.tar:
-	docker pull --disable-content-trust=false $(IMAGE)
-	docker export $(shell docker create $(IMAGE) sh) > $@
-
 .PHONY: $(IMAGE_DATA_FILE)
-$(IMAGE_DATA_FILE): image.tar
+$(IMAGE_DATA_FILE):
 	GOMAXPROCS=1 go generate
 
 .PHONY: clean
@@ -112,9 +105,6 @@ clean: ## Cleanup any build binaries or packages
 	$(RM) $(NAME)
 	$(RM) -r $(BUILDDIR)
 	@sudo $(RM) -r rootfs
-	$(RM) *.tar
-	$(RM) $(IMAGE_DATA_FILE)
-	-@docker rm $(shell docker ps -aq) /dev/null 2>&1
 
 .PHONY: help
 help:
