@@ -2,74 +2,91 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"syscall"
+	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/activation"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runc/libcontainer/utils"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // startContainer starts the container. Returns the exit status or -1 and an
 // error. Signals sent to the current process will be forwarded to container.
-func startContainer(spec *specs.Spec, id, pidFile string, detach, useSystemdCgroup bool) (int, error) {
-	// create the libcontainer config
+func startContainer(spec *specs.Spec, id, pidFile, consoleSocket, root string, detach bool) (int, error) {
+	notifySocket := newNotifySocket(id, root)
+	if notifySocket != nil {
+		// Setup the spec for the notify socket.
+		notifySocket.setupSpec(spec)
+	}
+
+	// Create the libcontainer config.
+	useSystemdCgroup := false
 	config, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		CgroupName:       id,
 		UseSystemdCgroup: useSystemdCgroup,
 		NoPivotRoot:      false,
+		NoNewKeyring:     false,
 		Spec:             spec,
+		Rootless:         true,
 	})
 	if err != nil {
 		return -1, err
 	}
 
-	if _, err := os.Stat(config.Rootfs); err != nil {
-		if os.IsNotExist(err) {
-			return -1, fmt.Errorf("rootfs (%q) does not exist", config.Rootfs)
-		}
-		return -1, err
-	}
-
-	factory, err := loadFactory(useSystemdCgroup)
+	// Load the factory.
+	factory, err := loadFactory(root, useSystemdCgroup)
 	if err != nil {
 		return -1, err
 	}
 
+	// Create the factory.
 	container, err := factory.Create(id, config)
 	if err != nil {
 		return -1, err
 	}
 
-	// Support on-demand socket activation by passing file descriptors into the container init process.
+	if notifySocket != nil {
+		// Setup the socket for the notify socket.
+		err := notifySocket.setupSocket()
+		if err != nil {
+			return -1, err
+		}
+	}
+
+	// Support on-demand socket activation by passing file descriptors into
+	// the container init process.
 	listenFDs := []*os.File{}
 	if os.Getenv("LISTEN_FDS") != "" {
 		listenFDs = activation.Files(false)
 	}
 
+	// Initialize the runner.
 	r := &runner{
 		enableSubreaper: true,
 		shouldDestroy:   true,
 		container:       container,
-		console:         console,
+		listenFDs:       listenFDs,
+		notifySocket:    notifySocket,
+		consoleSocket:   consoleSocket,
 		detach:          detach,
 		pidFile:         pidFile,
-		listenFDs:       listenFDs,
 	}
-	return r.run(&spec.Process)
+	// Run the process.
+	return r.run(spec.Process)
 }
 
 // loadFactory returns the configured factory instance for execing containers.
-func loadFactory(useSystemdCgroup bool) (libcontainer.Factory, error) {
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return nil, err
-	}
+func loadFactory(root string, useSystemdCgroup bool) (libcontainer.Factory, error) {
+	// Setup the cgroups manager. Default is cgroupfs.
 	cgroupManager := libcontainer.Cgroupfs
 	if useSystemdCgroup {
 		if systemd.UseSystemd() {
@@ -78,25 +95,61 @@ func loadFactory(useSystemdCgroup bool) (libcontainer.Factory, error) {
 			return nil, fmt.Errorf("systemd cgroup flag passed, but systemd support for managing cgroups is not available")
 		}
 	}
-	return libcontainer.New(abs, cgroupManager, func(l *libcontainer.LinuxFactory) error {
-		return nil
-	})
+
+	// We resolve the paths for {newuidmap,newgidmap} from the context of runc,
+	// to avoid doing a path lookup in the nsexec context. TODO: The binary
+	// names are not currently configurable.
+	newuidmap, err := exec.LookPath("newuidmap")
+	if err != nil {
+		newuidmap = ""
+	}
+	newgidmap, err := exec.LookPath("newgidmap")
+	if err != nil {
+		newgidmap = ""
+	}
+
+	// Create the new libcontainer factory.
+	return libcontainer.New(root, cgroupManager, nil, nil,
+		libcontainer.NewuidmapPath(newuidmap),
+		libcontainer.NewgidmapPath(newgidmap))
 }
 
 // newProcess returns a new libcontainer Process with the arguments from the
 // spec and stdio from the current process.
 func newProcess(p specs.Process) (*libcontainer.Process, error) {
+	// Create the libcontainer process.
 	lp := &libcontainer.Process{
-		Args: p.Args,
-		Env:  p.Env,
-		// TODO: fix libcontainer's API to better support uid/gid in a typesafe way.
+		Args:            p.Args,
+		Env:             p.Env,
 		User:            fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
 		Cwd:             p.Cwd,
-		Capabilities:    p.Capabilities,
 		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
 		AppArmorProfile: p.ApparmorProfile,
 	}
+
+	// Setup the console size.
+	if p.ConsoleSize != nil {
+		lp.ConsoleWidth = uint16(p.ConsoleSize.Width)
+		lp.ConsoleHeight = uint16(p.ConsoleSize.Height)
+	}
+
+	// Convert the capabilities.
+	if p.Capabilities != nil {
+		lp.Capabilities = &configs.Capabilities{}
+		lp.Capabilities.Bounding = p.Capabilities.Bounding
+		lp.Capabilities.Effective = p.Capabilities.Effective
+		lp.Capabilities.Inheritable = p.Capabilities.Inheritable
+		lp.Capabilities.Permitted = p.Capabilities.Permitted
+		lp.Capabilities.Ambient = p.Capabilities.Ambient
+	}
+
+	// Setup the additional user groups.
+	for _, gid := range p.User.AdditionalGids {
+		lp.AdditionalGroups = append(lp.AdditionalGroups, strconv.FormatUint(uint64(gid), 10))
+	}
+
+	// Setup the Rlimits.
 	for _, rlimit := range p.Rlimits {
 		rl, err := createLibContainerRlimit(rlimit)
 		if err != nil {
@@ -104,23 +157,8 @@ func newProcess(p specs.Process) (*libcontainer.Process, error) {
 		}
 		lp.Rlimits = append(lp.Rlimits, rl)
 	}
-	return lp, nil
-}
 
-func dupStdio(process *libcontainer.Process, rootuid int) error {
-	process.Stdin = os.Stdin
-	process.Stdout = os.Stdout
-	process.Stderr = os.Stderr
-	for _, fd := range []uintptr{
-		os.Stdin.Fd(),
-		os.Stdout.Fd(),
-		os.Stderr.Fd(),
-	} {
-		if err := syscall.Fchown(int(fd), rootuid, rootuid); err != nil {
-			return err
-		}
-	}
-	return nil
+	return lp, nil
 }
 
 func destroy(container libcontainer.Container) {
@@ -129,24 +167,55 @@ func destroy(container libcontainer.Container) {
 	}
 }
 
-// setupIO sets the proper IO on the process depending on the configuration
-// If there is a nil error then there must be a non nil tty returned
-func setupIO(process *libcontainer.Process, rootuid int, console string, createTTY, detach bool) (*tty, error) {
-	// detach and createTty will not work unless a console path is passed
-	// so error out here before changing any terminal settings
-	if createTTY && detach && console == "" {
-		return nil, fmt.Errorf("cannot allocate tty if runc will detach")
-	}
+func setupIO(process *libcontainer.Process, rootuid, rootgid int, createTTY, detach bool, sockpath string) (*tty, error) {
 	if createTTY {
-		return createTty(process, rootuid, console)
+		process.Stdin = nil
+		process.Stdout = nil
+		process.Stderr = nil
+		t := &tty{}
+		if !detach {
+			parent, child, err := utils.NewSockPair("console")
+			if err != nil {
+				return nil, err
+			}
+			process.ConsoleSocket = child
+			t.postStart = append(t.postStart, parent, child)
+			t.consoleC = make(chan error, 1)
+			go func() {
+				if err := t.recvtty(process, parent); err != nil {
+					t.consoleC <- err
+				}
+				t.consoleC <- nil
+			}()
+		} else {
+			// the caller of runc will handle receiving the console master
+			conn, err := net.Dial("unix", sockpath)
+			if err != nil {
+				return nil, err
+			}
+			uc, ok := conn.(*net.UnixConn)
+			if !ok {
+				return nil, fmt.Errorf("casting to UnixConn failed")
+			}
+			t.postStart = append(t.postStart, uc)
+			socket, err := uc.File()
+			if err != nil {
+				return nil, err
+			}
+			t.postStart = append(t.postStart, socket)
+			process.ConsoleSocket = socket
+		}
+		return t, nil
 	}
+	// when runc will detach the caller provides the stdio to runc via runc's 0,1,2
+	// and the container's process inherits runc's stdio.
 	if detach {
-		if err := dupStdio(process, rootuid); err != nil {
+		if err := inheritStdio(process); err != nil {
 			return nil, err
 		}
 		return &tty{}, nil
 	}
-	return createStdioPipes(process, rootuid)
+	return setupProcessPipes(process, rootuid, rootgid)
 }
 
 // createPidFile creates a file with the processes pid inside it atomically
@@ -175,46 +244,86 @@ func createPidFile(path string, process *libcontainer.Process) error {
 
 type runner struct {
 	enableSubreaper bool
-	shouldDestroy   bool
 	detach          bool
-	listenFDs       []*os.File
+	shouldDestroy   bool
+	consoleSocket   string
 	pidFile         string
-	console         string
 	container       libcontainer.Container
+	listenFDs       []*os.File
+	notifySocket    *notifySocket
 }
 
 func (r *runner) run(config *specs.Process) (int, error) {
+	// Check the terminal settings.
+	if r.detach && config.Terminal && r.consoleSocket == "" {
+		return -1, fmt.Errorf("cannot allocate tty if runc will detach without setting console socket")
+	}
+	if (!r.detach || !config.Terminal) && r.consoleSocket != "" {
+		return -1, fmt.Errorf("cannot use console socket if runc will not detach or allocate tty")
+	}
+
+	// Create the process.
 	process, err := newProcess(*config)
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
+
+	// Setup the listen file descriptors.
 	if len(r.listenFDs) > 0 {
 		process.Env = append(process.Env, fmt.Sprintf("LISTEN_FDS=%d", len(r.listenFDs)), "LISTEN_PID=1")
 		process.ExtraFiles = append(process.ExtraFiles, r.listenFDs...)
 	}
-	rootuid, err := r.container.Config().HostUID()
+
+	// Get the rootuid.
+	rootuid, err := r.container.Config().HostRootUID()
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
-	tty, err := setupIO(process, rootuid, r.console, config.Terminal, r.detach)
+
+	// Get the rootgid.
+	rootgid, err := r.container.Config().HostRootGID()
 	if err != nil {
 		r.destroy()
 		return -1, err
 	}
-	handler := newSignalHandler(tty, r.enableSubreaper)
-	if err := r.container.Start(process); err != nil {
+
+	// Setting up IO is a two stage process. We need to modify process to deal
+	// with detaching containers, and then we get a tty after the container has
+	// started.
+	handler := newSignalHandler(r.enableSubreaper, r.notifySocket)
+	tty, err := setupIO(process, rootuid, rootgid, config.Terminal, r.detach, r.consoleSocket)
+	if err != nil {
+		r.destroy()
+		return -1, err
+	}
+	defer tty.Close()
+
+	// Run the container.
+	if err := r.container.Run(process); err != nil {
 		r.destroy()
 		tty.Close()
 		return -1, err
 	}
-	if err := tty.ClosePostStart(); err != nil {
+
+	// Wait for the tty.
+	if err := tty.waitConsole(); err != nil {
 		r.terminate(process)
 		r.destroy()
 		tty.Close()
 		return -1, err
 	}
+
+	// Close after start the tty.
+	if err = tty.ClosePostStart(); err != nil {
+		r.terminate(process)
+		r.destroy()
+		tty.Close()
+		return -1, err
+	}
+
+	// Create the pid file.
 	if r.pidFile != "" {
 		if err := createPidFile(r.pidFile, process); err != nil {
 			r.terminate(process)
@@ -223,16 +332,21 @@ func (r *runner) run(config *specs.Process) (int, error) {
 			return -1, err
 		}
 	}
-	if r.detach {
-		tty.Close()
-		return 0, nil
-	}
-	status, err := handler.forward(process)
+
+	// Forward the handler.
+	status, err := handler.forward(process, tty, detach)
 	if err != nil {
 		r.terminate(process)
 	}
+
+	// Return early if we are detaching.
+	if r.detach {
+		return 0, nil
+	}
+
+	// Cleanup.
 	r.destroy()
-	tty.Close()
+
 	return status, err
 }
 
@@ -243,27 +357,18 @@ func (r *runner) destroy() {
 }
 
 func (r *runner) terminate(p *libcontainer.Process) {
-	p.Signal(syscall.SIGKILL)
-	p.Wait()
+	_ = p.Signal(unix.SIGKILL)
+	_, _ = p.Wait()
 }
 
-func sPtr(s string) *string { return &s }
-
-func createLibContainerRlimit(rlimit specs.Rlimit) (configs.Rlimit, error) {
+func createLibContainerRlimit(rlimit specs.POSIXRlimit) (configs.Rlimit, error) {
 	rl, err := strToRlimit(rlimit.Type)
 	if err != nil {
 		return configs.Rlimit{}, err
 	}
 	return configs.Rlimit{
 		Type: rl,
-		Hard: uint64(rlimit.Hard),
-		Soft: uint64(rlimit.Soft),
+		Hard: rlimit.Hard,
+		Soft: rlimit.Soft,
 	}, nil
-}
-
-// If systemd is supporting sd_notify protocol, this function will add support
-// for sd_notify protocol from within the container.
-func setupSdNotify(spec *specs.Spec, notifySocket string) {
-	spec.Mounts = append(spec.Mounts, specs.Mount{Destination: notifySocket, Type: "bind", Source: notifySocket, Options: []string{"bind"}})
-	spec.Process.Env = append(spec.Process.Env, fmt.Sprintf("NOTIFY_SOCKET=%s", notifySocket))
 }
