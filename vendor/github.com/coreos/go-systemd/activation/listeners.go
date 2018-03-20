@@ -32,6 +32,30 @@ func Listeners(unsetEnv bool) ([]net.Listener, error) {
 	for i, f := range files {
 		if pc, err := net.FileListener(f); err == nil {
 			listeners[i] = pc
+			if unsetEnv {
+				f.Close()
+			}
+		}
+	}
+	return listeners, nil
+}
+
+// ListenersWithNames maps a listener name to a set of net.Listener instances.
+func ListenersWithNames(unsetEnv bool) (map[string][]net.Listener, error) {
+	files := Files(unsetEnv)
+	listeners := map[string][]net.Listener{}
+
+	for _, f := range files {
+		if pc, err := net.FileListener(f); err == nil {
+			current, ok := listeners[f.Name()]
+			if !ok {
+				listeners[f.Name()] = []net.Listener{pc}
+			} else {
+				listeners[f.Name()] = append(current, pc)
+			}
+			if unsetEnv {
+				f.Close()
+			}
 		}
 	}
 	return listeners, nil
@@ -48,12 +72,33 @@ func TLSListeners(unsetEnv bool, tlsConfig *tls.Config) ([]net.Listener, error) 
 	}
 
 	if tlsConfig != nil && err == nil {
-		tlsConfig.NextProtos = []string{"http/1.1"}
-
 		for i, l := range listeners {
 			// Activate TLS only for TCP sockets
 			if l.Addr().Network() == "tcp" {
 				listeners[i] = tls.NewListener(l, tlsConfig)
+			}
+		}
+	}
+
+	return listeners, err
+}
+
+// TLSListenersWithNames maps a listener name to a net.Listener with
+// the associated TLS configuration.
+func TLSListenersWithNames(unsetEnv bool, tlsConfig *tls.Config) (map[string][]net.Listener, error) {
+	listeners, err := ListenersWithNames(unsetEnv)
+
+	if listeners == nil || err != nil {
+		return nil, err
+	}
+
+	if tlsConfig != nil && err == nil {
+		for _, ll := range listeners {
+			// Activate TLS only for TCP sockets
+			for i, l := range ll {
+				if l.Addr().Network() == "tcp" {
+					ll[i] = tls.NewListener(l, tlsConfig)
+				}
 			}
 		}
 	}

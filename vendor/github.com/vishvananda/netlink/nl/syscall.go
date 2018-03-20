@@ -35,3 +35,44 @@ const (
 	FR_ACT_UNREACHABLE /* Drop with ENETUNREACH */
 	FR_ACT_PROHIBIT    /* Drop with EACCES */
 )
+
+// socket diags related
+const (
+	SOCK_DIAG_BY_FAMILY = 20         /* linux.sock_diag.h */
+	TCPDIAG_NOCOOKIE    = 0xFFFFFFFF /* TCPDIAG_NOCOOKIE in net/ipv4/tcp_diag.h*/
+)
+
+const (
+	AF_MPLS = 28
+)
+
+const (
+	RTA_NEWDST     = 0x13
+	RTA_ENCAP_TYPE = 0x15
+	RTA_ENCAP      = 0x16
+)
+
+// RTA_ENCAP subtype
+const (
+	MPLS_IPTUNNEL_UNSPEC = iota
+	MPLS_IPTUNNEL_DST
+)
+
+// light weight tunnel encap types
+const (
+	LWTUNNEL_ENCAP_NONE = iota
+	LWTUNNEL_ENCAP_MPLS
+	LWTUNNEL_ENCAP_IP
+	LWTUNNEL_ENCAP_ILA
+	LWTUNNEL_ENCAP_IP6
+	LWTUNNEL_ENCAP_SEG6
+	LWTUNNEL_ENCAP_BPF
+)
+
+// routing header types
+const (
+	IPV6_SRCRT_STRICT = 0x01 // Deprecated; will be removed
+	IPV6_SRCRT_TYPE_0 = 0    // Deprecated; will be removed
+	IPV6_SRCRT_TYPE_2 = 2    // IPv6 type 2 Routing Header
+	IPV6_SRCRT_TYPE_4 = 4    // Segment Routing with IPv6
+)

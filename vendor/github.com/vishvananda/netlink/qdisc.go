@@ -176,70 +176,6 @@ type Netem struct {
 	CorruptCorr   uint32
 }
 
-func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
-	var limit uint32 = 1000
-	var lossCorr, delayCorr, duplicateCorr uint32
-	var reorderProb, reorderCorr uint32
-	var corruptProb, corruptCorr uint32
-
-	latency := nattrs.Latency
-	loss := Percentage2u32(nattrs.Loss)
-	gap := nattrs.Gap
-	duplicate := Percentage2u32(nattrs.Duplicate)
-	jitter := nattrs.Jitter
-
-	// Correlation
-	if latency > 0 && jitter > 0 {
-		delayCorr = Percentage2u32(nattrs.DelayCorr)
-	}
-	if loss > 0 {
-		lossCorr = Percentage2u32(nattrs.LossCorr)
-	}
-	if duplicate > 0 {
-		duplicateCorr = Percentage2u32(nattrs.DuplicateCorr)
-	}
-	// FIXME should validate values(like loss/duplicate are percentages...)
-	latency = time2Tick(latency)
-
-	if nattrs.Limit != 0 {
-		limit = nattrs.Limit
-	}
-	// Jitter is only value if latency is > 0
-	if latency > 0 {
-		jitter = time2Tick(jitter)
-	}
-
-	reorderProb = Percentage2u32(nattrs.ReorderProb)
-	reorderCorr = Percentage2u32(nattrs.ReorderCorr)
-
-	if reorderProb > 0 {
-		// ERROR if lantency == 0
-		if gap == 0 {
-			gap = 1
-		}
-	}
-
-	corruptProb = Percentage2u32(nattrs.CorruptProb)
-	corruptCorr = Percentage2u32(nattrs.CorruptCorr)
-
-	return &Netem{
-		QdiscAttrs:    attrs,
-		Latency:       latency,
-		DelayCorr:     delayCorr,
-		Limit:         limit,
-		Loss:          loss,
-		LossCorr:      lossCorr,
-		Gap:           gap,
-		Duplicate:     duplicate,
-		DuplicateCorr: duplicateCorr,
-		Jitter:        jitter,
-		ReorderProb:   reorderProb,
-		ReorderCorr:   reorderCorr,
-		CorruptProb:   corruptProb,
-		CorruptCorr:   corruptCorr,
-	}
-}
-
 func (qdisc *Netem) Attrs() *QdiscAttrs {
 	return &qdisc.QdiscAttrs
 }
@@ -251,10 +187,11 @@ func (qdisc *Netem) Type() string {
 // Tbf is a classless qdisc that rate limits based on tokens
 type Tbf struct {
 	QdiscAttrs
-	// TODO: handle 64bit rate properly
-	Rate   uint64
-	Limit  uint32
-	Buffer uint32
+	Rate     uint64
+	Limit    uint32
+	Buffer   uint32
+	Peakrate uint64
+	Minburst uint32
 	// TODO: handle other settings
 }
 
@@ -292,4 +229,64 @@ func (qdisc *GenericQdisc) Attrs() *QdiscAttrs {
 
 func (qdisc *GenericQdisc) Type() string {
 	return qdisc.QdiscType
+}
+
+// Fq is a classless packet scheduler meant to be mostly used for locally generated traffic.
+type Fq struct {
+	QdiscAttrs
+	PacketLimit     uint32
+	FlowPacketLimit uint32
+	// In bytes
+	Quantum        uint32
+	InitialQuantum uint32
+	// called RateEnable under the hood
+	Pacing          uint32
+	FlowDefaultRate uint32
+	FlowMaxRate     uint32
+	// called BucketsLog under the hood
+	Buckets          uint32
+	FlowRefillDelay  uint32
+	LowRateThreshold uint32
+}
+
+func NewFq(attrs QdiscAttrs) *Fq {
+	return &Fq{
+		QdiscAttrs: attrs,
+		Pacing:     1,
+	}
+}
+
+func (qdisc *Fq) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Fq) Type() string {
+	return "fq"
+}
+
+// FQ_Codel (Fair Queuing Controlled Delay) is queuing discipline that combines Fair Queuing with the CoDel AQM scheme.
+type FqCodel struct {
+	QdiscAttrs
+	Target   uint32
+	Limit    uint32
+	Interval uint32
+	ECN      uint32
+	Flows    uint32
+	Quantum  uint32
+	// There are some more attributes here, but support for them seems not ubiquitous
+}
+
+func NewFqCodel(attrs QdiscAttrs) *FqCodel {
+	return &FqCodel{
+		QdiscAttrs: attrs,
+		ECN:        1,
+	}
+}
+
+func (qdisc *FqCodel) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *FqCodel) Type() string {
+	return "fq_codel"
 }
