@@ -9,19 +9,30 @@ GO_LDFLAGS_STATIC=-ldflags "-w -extldflags -static"
 all: clean build fmt lint test staticcheck vet ## Runs a clean, build, fmt, lint, test, staticcheck, and vet
 
 .PHONY: build
-build: alpine busybox ## Builds a static executable or package
+build: alpine busybox cl-k8s ## Builds a static executable or package
 
 .PHONY: alpine
-alpine: generate
+alpine:
 	@echo "+ $@"
+	go generate ./examples/$@/...
 	CGO_ENABLED=1 go build \
 				-tags "$(BUILDTAGS) static_build" \
 				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
 	@echo "Static container for $@ created at: ./$@"
 
 .PHONY: busybox
-busybox: generate
+busybox:
 	@echo "+ $@"
+	go generate ./examples/$@/...
+	CGO_ENABLED=1 go build \
+				-tags "$(BUILDTAGS) static_build" \
+				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
+	@echo "Static container for $@ created at: ./$@"
+
+.PHONY: cl-k8s
+cl-k8s:
+	@echo "+ $@"
+	go generate ./examples/$@/...
 	CGO_ENABLED=1 go build \
 				-tags "$(BUILDTAGS) static_build" \
 				${GO_LDFLAGS_STATIC} -o $@ ./examples/$@/...
@@ -81,14 +92,10 @@ tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
 	@echo "Run git push origin $(VERSION) to push your new tag to GitHub and trigger a travis build."
 
-.PHONY: generate
-generate:
-	GOMAXPROCS=1 go generate ./...
-
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
 	@echo "+ $@"
-	$(RM) alpine busybox
+	$(RM) alpine busybox cl-k8s
 	@sudo $(RM) -r rootfs
 
 .PHONY: help
