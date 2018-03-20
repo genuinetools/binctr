@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
-	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runc/libcontainer/specconv"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -40,15 +41,14 @@ const (
 )
 
 var (
-	console     = os.Getenv("console")
 	containerID string
 	pidFile     string
 	root        string
 
-	allocateTty      bool
-	detach           bool
-	readonly         bool
-	useSystemdCgroup bool
+	allocateTty   bool
+	consoleSocket string
+	detach        bool
+	readonly      bool
 
 	hooks     specs.Hooks
 	hookflags stringSlice
@@ -113,16 +113,14 @@ func (s stringSlice) ParseHooks() (hooks specs.Hooks, err error) {
 func init() {
 	// Parse flags
 	flag.StringVar(&containerID, "id", IMAGE, "container ID")
-	flag.StringVar(&console, "console", console, "the pty slave path for use with the container")
 	flag.StringVar(&pidFile, "pid-file", "", "specify the file to write the process id to")
 	flag.StringVar(&root, "root", defaultRoot, "root directory of container state, should be tmpfs")
 
 	flag.Var(&hookflags, "hook", "Hooks to prefill into spec file. (ex. --hook prestart:netns)")
 
 	flag.BoolVar(&allocateTty, "t", true, "allocate a tty for the container")
+	flag.StringVar(&consoleSocket, "console-socket", "", "path to an AF_UNIX socket which will receive a file descriptor referencing the master end of the console's pseudoterminal")
 	flag.BoolVar(&detach, "d", false, "detach from the container's process")
-	// TODO (jess): do not enable this flag, the error is very gross on systemd
-	// flag.BoolVar(&useSystemdCgroup, "systemd-cgroup", false, "enable systemd cgroup support")
 	flag.BoolVar(&readonly, "read-only", false, "make container filesystem readonly")
 
 	flag.BoolVar(&version, "version", false, "print version and exit")
@@ -141,17 +139,33 @@ func init() {
 		os.Exit(0)
 	}
 
-	// Set log level
+	// Set log level.
 	if debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	// parse the hook flags
+	// Parse the hook flags.
 	var err error
 	hooks, err = hookflags.ParseHooks()
 	if err != nil {
 		logrus.Fatal(err)
 	}
+
+	// Convert pid-file to an absolute path so we can write to the
+	// right file after chdir to bundle.
+	if pidFile != "" {
+		pidFile, err = filepath.Abs(pidFile)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	}
+
+	// Get the absolute path to the root.
+	root, err = filepath.Abs(root)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 }
 
 //go:generate go run generate.go
@@ -161,28 +175,27 @@ func main() {
 		return
 	}
 
-	notifySocket := os.Getenv("NOTIFY_SOCKET")
-	if notifySocket != "" {
-		setupSdNotify(spec, notifySocket)
-	}
+	// Initialize the spec.
+	spec := specconv.Example()
 
-	// override the cmd in the spec with any args specified
-	if len(flag.Args()) > 0 {
-		spec.Process.Args = flag.Args()
-	}
+	// Set the spec to be rootless.
+	specconv.ToRootless(spec)
 
-	// setup readonly fs in spec
+	// Setup readonly fs in spec.
 	spec.Root.Readonly = readonly
 
-	// setup tty in spec
+	// Setup tty in spec.
 	spec.Process.Terminal = allocateTty
 
-	// pass in any hooks
-	spec.Hooks = hooks
+	// Pass in any hooks to the spec.
+	spec.Hooks = &hooks
 
-	// install the default apparmor profile
+	// Set the default seccomp profile.
+	spec.Linux.Seccomp = defaultSeccompProfile
+
+	// Install the default apparmor profile.
 	if apparmor.IsEnabled() {
-		// check if we have the docker-default apparmor profile loaded
+		// Check if we have the docker-default apparmor profile loaded.
 		if _, err := aaprofile.IsLoaded(defaultApparmorProfile); err != nil {
 			logrus.Warnf("AppArmor enabled on system but the %s profile is not loaded. apparmor_parser needs root to load a profile so we can't do it for you.", defaultApparmorProfile)
 		} else {
@@ -190,45 +203,23 @@ func main() {
 		}
 	}
 
-	// set the CgroupsPath as this user
-	u, err := user.CurrentUser()
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	spec.Linux.CgroupsPath = sPtr(u.Name)
-
-	// setup UID mappings
-	spec.Linux.UIDMappings = []specs.IDMapping{
-		{
-			HostID:      uint32(u.Uid),
-			ContainerID: 0,
-			Size:        1,
-		},
-	}
-
-	// setup GID mappings
-	spec.Linux.GIDMappings = []specs.IDMapping{
-		{
-			HostID:      uint32(u.Gid),
-			ContainerID: 0,
-			Size:        1,
-		},
-	}
-
+	// Unpack the rootfs.
 	if err := unpackRootfs(spec); err != nil {
 		logrus.Fatal(err)
 	}
 
-	status, err := startContainer(spec, containerID, pidFile, detach, useSystemdCgroup)
+	// Start the container.
+	status, err := startContainer(spec, containerID, pidFile, consoleSocket, root, detach)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
+	// Remove the rootfs after the container has exited.
 	if err := os.RemoveAll(defaultRootfsDir); err != nil {
 		logrus.Warnf("removing rootfs failed: %v", err)
 	}
 
-	// exit with the container's exit status
+	// Exit with the container's exit status.
 	os.Exit(status)
 }
 

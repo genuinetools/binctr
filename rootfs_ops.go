@@ -22,7 +22,7 @@ func unpackRootfs(spec *specs.Spec) error {
 	}
 
 	r := bytes.NewReader(data)
-	if err := archive.Untar(r, defaultRootfsDir, nil); err != nil {
+	if err := archive.Untar(r, defaultRootfsDir, &archive.TarOptions{NoLchown: true}); err != nil {
 		return err
 	}
 
