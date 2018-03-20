@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultRoot      = "/tmp/binctr-busybox"
+	defaultRoot      = "/tmp/binctr-alpine"
 	defaultRootfsDir = "rootfs"
 )
 
@@ -23,7 +23,7 @@ var (
 
 func init() {
 	// Parse flags
-	flag.StringVar(&containerID, "id", "busybox", "container ID")
+	flag.StringVar(&containerID, "id", "alpine", "container ID")
 	flag.StringVar(&root, "root", defaultRoot, "root directory of container state, should be tmpfs")
 
 	flag.Usage = func() {
