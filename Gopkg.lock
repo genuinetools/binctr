@@ -79,6 +79,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/jteeuwen/go-bindata"
+  packages = ["."]
+  revision = "6025e8de665b31fa74ab1a66f2cddd8c0abf887e"
+
+[[projects]]
+  branch = "master"
   name = "github.com/mrunalp/fileutils"
   packages = ["."]
   revision = "7d4729fb36185a7c1719923406c9d40e54fb93c7"
@@ -201,6 +207,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "98adca7c9d30cc495c40327558bb9083199eb77eefb7b99aff37bbdf2abd4992"
+  inputs-digest = "9b1a33b507730008bd6eab13779a1a39519098e5c5f30b9fe15ce8c5cd2b6074"
   solver-name = "gps-cdcl"
   solver-version = 1
