@@ -30,8 +30,12 @@ $ make alpine
 Static container created at: ./alpine
 
 # building the busybox example
-$ make alpine
+$ make busybox
 Static container created at: ./busybox
+
+# building the cl-k8s example
+$ make cl-k8s
+Static container created at: ./cl-k8s
 ```
 
 ### Running
@@ -39,6 +43,7 @@ Static container created at: ./busybox
 ```console
 $ ./alpine
 $ ./busybox
+$ ./cl-k8s
 ```
 
 ## Cool things
