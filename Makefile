@@ -12,6 +12,7 @@ BUILDTAGS := seccomp apparmor
 BUILDDIR := ${PREFIX}/cross
 
 IMAGE := alpine
+IMAGE_DATA_FILE := image/data.go
 
 # Populate version variables
 # Add to compile time flags
@@ -22,8 +23,8 @@ ifneq ($(GITUNTRACKEDCHANGES),)
 	GITCOMMIT := $(GITCOMMIT)-dirty
 endif
 CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION) \
-		 -X main.IMAGE=$(notdir $(IMAGE)) \
-		 -X main.IMAGESHA=$(shell docker inspect --format "{{.Id}}" $(IMAGE))
+		 -X $(PKG)/image.NAME=$(notdir $(IMAGE)) \
+		 -X $(PKG)/image.SHA=$(shell docker inspect --format "{{.Id}}" $(IMAGE))
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 
@@ -35,7 +36,7 @@ build: $(BUILDDIR)/$(notdir $(IMAGE)) ## Builds a static executable or package
 $(BUILDDIR):
 	@mkdir -p $@
 
-$(BUILDDIR)/$(notdir $(IMAGE)): $(BUILDDIR) image/data.go *.go VERSION.txt
+$(BUILDDIR)/$(notdir $(IMAGE)): $(BUILDDIR) $(IMAGE_DATA_FILE) *.go VERSION.txt
 	@echo "+ $@"
 	CGO_ENABLED=1 go build \
 				-tags "$(BUILDTAGS) static_build" \
@@ -101,8 +102,8 @@ image.tar:
 	docker pull --disable-content-trust=false $(IMAGE)
 	docker export $(shell docker create $(IMAGE) sh) > $@
 
-.PHONY: image/data.go
-image/data.go: image.tar
+.PHONY: $(IMAGE_DATA_FILE)
+$(IMAGE_DATA_FILE): image.tar
 	GOMAXPROCS=1 go generate
 
 .PHONY: clean
@@ -112,7 +113,7 @@ clean: ## Cleanup any build binaries or packages
 	$(RM) -r $(BUILDDIR)
 	@sudo $(RM) -r rootfs
 	$(RM) *.tar
-	$(RM) image/data.go
+	$(RM) $(IMAGE_DATA_FILE)
 	-@docker rm $(shell docker ps -aq) /dev/null 2>&1
 
 .PHONY: help

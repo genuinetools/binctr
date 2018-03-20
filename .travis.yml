@@ -1,6 +1,8 @@
 ---
   language: go
-  sudo: false
+  sudo: required
+  services:
+  - docker
   notifications:
     email: true
   go:
