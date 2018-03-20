@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	aaprofile "github.com/docker/docker/profiles/apparmor"
+	"github.com/genuinetools/binctr/image"
 	"github.com/genuinetools/binctr/version"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
@@ -56,11 +57,6 @@ var (
 
 	debug bool
 	vrsn  bool
-
-	// IMAGE is the name of the image that is embedded at compile time.
-	IMAGE = "alpine"
-	// IMAGESHA is the sha digest of the image that is embedded at compile time.
-	IMAGESHA = "sha256:70c557e50ed630deed07cbb0dc4d28aa0f2a485cf7af124cc48f06bce83f784b"
 )
 
 // stringSlice is a slice of strings
@@ -107,7 +103,7 @@ func (s stringSlice) ParseHooks() (hooks specs.Hooks, err error) {
 
 func init() {
 	// Parse flags
-	flag.StringVar(&containerID, "id", IMAGE, "container ID")
+	flag.StringVar(&containerID, "id", image.NAME, "container ID")
 	flag.StringVar(&pidFile, "pid-file", "", "specify the file to write the process id to")
 	flag.StringVar(&root, "root", defaultRoot, "root directory of container state, should be tmpfs")
 
@@ -123,14 +119,14 @@ func init() {
 	flag.BoolVar(&debug, "D", false, "run in debug mode")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, IMAGE, IMAGESHA, version.VERSION, version.GITCOMMIT))
+		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, image.NAME, image.SHA, version.VERSION, version.GITCOMMIT))
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
 
 	if vrsn {
-		fmt.Printf("%s, commit: %s, image: %s, image digest: %s", version.VERSION, version.GITCOMMIT, IMAGE, IMAGESHA)
+		fmt.Printf("%s, commit: %s, image: %s, image digest: %s", version.VERSION, version.GITCOMMIT, image.NAME, image.SHA)
 		os.Exit(0)
 	}
 

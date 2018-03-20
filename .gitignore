@@ -52,6 +52,5 @@ profile.out
 *.tar
 rootfs
 config.json
-bin
-rootfs.go
+image/data.go
 .ip

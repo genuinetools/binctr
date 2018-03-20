@@ -8,13 +8,12 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/genuinetools/binctr/image"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-const DATA = ""
-
 func unpackRootfs(spec *specs.Spec) error {
-	data, err := base64.StdEncoding.DecodeString(DATA)
+	data, err := base64.StdEncoding.DecodeString(image.DATA)
 	if err != nil {
 		return err
 	}
