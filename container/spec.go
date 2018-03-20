@@ -17,6 +17,7 @@ type SpecOpts struct {
 	Rootless bool
 	Readonly bool
 	Terminal bool
+	Args     []string
 	Hooks    *specs.Hooks
 }
 
@@ -48,6 +49,10 @@ func Spec(opts SpecOpts) *specs.Spec {
 		if _, err := aaprofile.IsLoaded(DefaultApparmorProfile); err == nil {
 			spec.Process.ApparmorProfile = DefaultApparmorProfile
 		}
+	}
+
+	if opts.Args != nil {
+		spec.Process.Args = opts.Args
 	}
 
 	return spec
