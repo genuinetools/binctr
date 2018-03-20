@@ -38,7 +38,7 @@ Static container created at: ./busybox
 
 ```console
 $ ./alpine
-$ ./busybox --read-only
+$ ./busybox
 ```
 
 ## Cool things
