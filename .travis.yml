@@ -20,7 +20,7 @@
     - go get honnef.co/go/tools/cmd/staticcheck
     - sudo apt update && sudo apt install -y libapparmor-dev libseccomp-dev
   script:
-    - make IMAGE=alpine BUILDTAGS=apparmor
+    - make BUILDTAGS=apparmor
     - go vet $(go list ./... | grep -v vendor)
     - staticcheck $(go list ./... | grep -v vendor)
     - test -z "$(golint ./... | grep -v vendor | tee /dev/stderr)"
