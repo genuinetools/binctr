@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -25,7 +24,9 @@ var (
 	containerID string
 	root        string
 
-	file string
+	file      string
+	dir       string
+	shortpath string
 )
 
 func init() {
@@ -42,28 +43,6 @@ func init() {
 	if flag.NArg() < 1 {
 		logrus.Fatal("pass a file to run with cl-k8s")
 	}
-
-	// Get the file args passed.
-	file := flag.Arg(0)
-	// Get the absolute path.
-	var err error
-	file, err = filepath.Abs(file)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	// Check if its  directory.
-	fi, err := os.Stat(file)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	if !fi.Mode().IsDir() {
-		// Copy the file to a temporary directory.
-		file, err = copyFile(file)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		fmt.Printf("new file is %s\n", file)
-	}
 }
 
 //go:generate go run generate.go
@@ -71,6 +50,32 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		runInit()
 		return
+	}
+
+	// Get the file args passed.
+	file = flag.Arg(0)
+
+	// Get the absolute path.
+	var err error
+	file, err = filepath.Abs(file)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	// Check if its directory.
+	fi, err := os.Stat(file)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	dir = file
+	if !fi.Mode().IsDir() {
+		// Copy the file to a temporary directory.
+		file, err = copyFile(file)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		dir = filepath.Dir(file)
 	}
 
 	// Create a new container spec with the following options.
@@ -82,12 +87,11 @@ func main() {
 			{
 				Destination: "/home/user/scripts/",
 				Type:        "bind",
-				Source:      filepath.Dir(file),
+				Source:      dir,
 				Options:     []string{"bind", "ro"},
 			},
 		},
 	}
-	fmt.Printf("opts %#v\n", opts)
 	spec := container.Spec(opts)
 
 	// Initialize the container object.
