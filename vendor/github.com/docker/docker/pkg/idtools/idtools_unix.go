@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -227,8 +226,5 @@ func lazyChown(p string, uid, gid int, stat *system.StatT) error {
 	if stat.UID() == uint32(uid) && stat.GID() == uint32(gid) {
 		return nil
 	}
-	if err := os.Chown(p, uid, gid); err != nil {
-		logrus.Warnf("chown err: %s", err)
-	}
-	return nil
+	return os.Chown(p, uid, gid)
 }
