@@ -46,6 +46,10 @@
   branch = "master"
 
 [[constraint]]
+  name = "github.com/seccomp/libseccomp-golang"
+  branch = "master"
+
+[[constraint]]
   name = "github.com/jteeuwen/go-bindata"
   branch = "master"
 

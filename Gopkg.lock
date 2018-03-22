@@ -26,7 +26,7 @@
   branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
-  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+  revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
 
 [[projects]]
   branch = "master"
@@ -35,32 +35,9 @@
   revision = "cb7008ab3d8359b78c5f464cb7cf160107ad5925"
 
 [[projects]]
-  name = "github.com/containerd/containerd"
-  packages = [
-    "containers",
-    "content",
-    "contrib/seccomp",
-    "errdefs",
-    "fs",
-    "images",
-    "log",
-    "mount",
-    "namespaces",
-    "oci",
-    "platforms",
-    "snapshots",
-    "sys"
-  ]
-  revision = "cfd04396dc68220d1cecbe686a6cc3aa5ce3667c"
-  version = "v1.0.2"
-
-[[projects]]
   branch = "master"
   name = "github.com/containerd/continuity"
-  packages = [
-    "pathdriver",
-    "sysx"
-  ]
+  packages = ["pathdriver"]
   revision = "d8fb8589b0e8e85b8c8bbaa8840226d0dfeb7371"
 
 [[projects]]
@@ -71,7 +48,7 @@
     "dbus",
     "util"
   ]
-  revision = "d7b55e18be11bfd0d09b6bd1be308332818b4f46"
+  revision = "54f92f7696b56003327688a2f18514c6c43e98c7"
 
 [[projects]]
   name = "github.com/coreos/pkg"
@@ -93,7 +70,7 @@
     "cli/config/credentials",
     "opts"
   ]
-  revision = "c1b58a90961424e0b97956b93a88303a2790d789"
+  revision = "c0ffb9491cdffb628e18bb491b566255987fd28d"
 
 [[projects]]
   branch = "master"
@@ -123,7 +100,7 @@
     "registry/storage/driver/filesystem",
     "uuid"
   ]
-  revision = "23bef416bdd6dcff90083288c284367cf6af955e"
+  revision = "607ae5d128a82f280e8c7f453d5fb30c535bda17"
 
 [[projects]]
   branch = "master"
@@ -160,14 +137,14 @@
     "registry",
     "registry/resumable"
   ]
-  revision = "e2bede01e4a6a6f84e33e2a6debf2cfed5938828"
+  revision = "0c1006f1abc1af7aa6b9847754370d054dfa6c68"
   source = "github.com/moby/moby"
 
 [[projects]]
   branch = "master"
   name = "github.com/docker/docker-ce"
   packages = ["components/cli/cli/config"]
-  revision = "ea449e9b10cebb259e1a43325587cd9a0e98d0ff"
+  revision = "4836f8c6fc8cb4bd4de48f019f772b683b94ed71"
 
 [[projects]]
   name = "github.com/docker/docker-credential-helpers"
@@ -224,23 +201,13 @@
 
 [[projects]]
   name = "github.com/gogo/protobuf"
-  packages = [
-    "proto",
-    "sortkeys",
-    "types"
-  ]
+  packages = ["proto"]
   revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
   version = "v1.0.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = [
-    "proto",
-    "ptypes",
-    "ptypes/any",
-    "ptypes/duration",
-    "ptypes/timestamp"
-  ]
+  packages = ["proto"]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
   version = "v1.0.0"
 
@@ -312,7 +279,7 @@
     "libcontainer/user",
     "libcontainer/utils"
   ]
-  revision = "4e3f25b953e3a3eab4a93b576421bad7a1d43af6"
+  revision = "69663f0bd4b60df09991c08812a60108003fa340"
 
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
@@ -375,13 +342,13 @@
     "nfs",
     "xfs"
   ]
-  revision = "780932d4fbbe0e69b84c34c20f5c8d0981e109ea"
+  revision = "54d17b57dd7d4a3aa092476596b3f8a933bde349"
 
 [[projects]]
+  branch = "master"
   name = "github.com/seccomp/libseccomp-golang"
   packages = ["."]
-  revision = "e3496e3a417d1dc9ecdceca5af2513271fed37a0"
-  version = "v0.9.0"
+  revision = "f6ec81daf48e41bf48b475afc7fe06a26bfb72d1"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -424,7 +391,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "80db560fac1fb3e6ac81dbc7f8ae4c061f5257bd"
+  revision = "c3a3ad6d03f7a915c0f7e194b7152974bb73d287"
 
 [[projects]]
   branch = "master"
@@ -437,39 +404,16 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/sync"
-  packages = ["errgroup"]
-  revision = "1d60e4601c6fd243af51cc01ddf169918a5407ca"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows"
   ]
-  revision = "c488ab1dd8481ef762f96a79a9577c27825be697"
-
-[[projects]]
-  branch = "master"
-  name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
-  revision = "f8c8703595236ae70fdf8789ecb656ea0bcdcf46"
-
-[[projects]]
-  name = "google.golang.org/grpc"
-  packages = [
-    "codes",
-    "grpclog",
-    "metadata",
-    "status"
-  ]
-  revision = "8e4536a86ab602859c20df5ebfd0bd4228d08655"
-  version = "v1.10.0"
+  revision = "d8e400bc7db4870d786864138af681469693d18c"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b2f72c89f2b4aa99a7ad87c6fc5c0e12b3fc95daa10fee87d454707eb15ce14a"
+  inputs-digest = "3bfe517dda3080944417768fdbeb5f1286fb1370a35c1e6c1bb9c3e2d45961f9"
   solver-name = "gps-cdcl"
   solver-version = 1

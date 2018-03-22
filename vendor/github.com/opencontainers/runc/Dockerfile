@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     python-minimal \
     uidmap \
-    kmod \
     --no-install-recommends \
     && apt-get clean
 

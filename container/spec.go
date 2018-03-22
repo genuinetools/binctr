@@ -1,7 +1,6 @@
 package container
 
 import (
-	"github.com/containerd/containerd/contrib/seccomp"
 	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -43,7 +42,7 @@ func Spec(opts SpecOpts) *specs.Spec {
 	spec.Hooks = opts.Hooks
 
 	// Set the default seccomp profile.
-	spec.Linux.Seccomp = seccomp.DefaultProfile(spec)
+	spec.Linux.Seccomp = DefaultSeccompProfile
 
 	// Install the default apparmor profile.
 	if apparmor.IsEnabled() {

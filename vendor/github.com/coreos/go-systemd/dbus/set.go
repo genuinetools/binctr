@@ -36,7 +36,7 @@ func (s *set) Length() int {
 }
 
 func (s *set) Values() (values []string) {
-	for val := range s.data {
+	for val, _ := range s.data {
 		values = append(values, val)
 	}
 	return
