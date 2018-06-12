@@ -19,10 +19,8 @@ Check out the original thread on the
 
 ### Checking out this repo
 
-You need to install [`git-lfs`](https://github.com/git-lfs/git-lfs/wiki/Installation).
-
 ```console
-$ git lfs clone git@github.com:genuinetools/binctr.git
+$ git clone git@github.com:genuinetools/binctr.git
 ```
 
 ### Building
