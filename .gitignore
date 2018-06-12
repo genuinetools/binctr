@@ -53,4 +53,7 @@ rootfs
 config.json
 .ip
 *.tar
-
+/alpine
+/busybox
+/cl-k8s
+bindata.go
