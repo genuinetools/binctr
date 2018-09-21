@@ -39,7 +39,7 @@ cl-k8s:
 	@echo "Static container for $@ created at: ./$@"
 
 .PHONY: fmt
-fmt: ## Verifies all files have men `gofmt`ed
+fmt: ## Verifies all files have been `gofmt`ed
 	@echo "+ $@"
 	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | grep -v bindata.go | tee /dev/stderr
 
