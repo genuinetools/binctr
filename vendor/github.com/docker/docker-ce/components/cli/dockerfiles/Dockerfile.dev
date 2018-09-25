@@ -1,0 +1,24 @@
+
+FROM    golang:1.10.4-alpine
+
+RUN     apk add -U git make bash coreutils ca-certificates curl
+
+ARG     VNDR_SHA=1fc68ee0c852556a9ed53cbde16247033f104111
+RUN     go get -d github.com/LK4D4/vndr && \
+        cd /go/src/github.com/LK4D4/vndr && \
+        git checkout -q "$VNDR_SHA" && \
+        go build -v -o /usr/bin/vndr . && \
+        rm -rf /go/src/* /go/pkg/* /go/bin/*
+
+ARG     ESC_SHA=58d9cde84f237ecdd89bd7f61c2de2853f4c5c6e
+RUN     go get -d github.com/mjibson/esc && \
+        cd /go/src/github.com/mjibson/esc && \
+        git checkout -q "$ESC_SHA" && \
+        go build -v -o /usr/bin/esc . && \
+        rm -rf /go/src/* /go/pkg/* /go/bin/*
+
+ENV     CGO_ENABLED=0 \
+        PATH=$PATH:/go/src/github.com/docker/cli/build \
+        DISABLE_WARN_OUTSIDE_CONTAINER=1
+WORKDIR /go/src/github.com/docker/cli
+CMD     sh

@@ -1,0 +1,63 @@
+ARG GO_VERSION=1.10.4
+
+FROM docker/containerd-shim-process:a4d1531 AS containerd-shim-process
+
+# Use Debian based image as docker-compose requires glibc.
+FROM golang:${GO_VERSION}
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    openssl \
+    btrfs-tools \
+    libapparmor-dev \
+    libseccomp-dev \
+    iptables \
+    && rm -rf /var/lib/apt/lists/*
+
+# TODO - consider replacing with an official image and a multi-stage build to pluck the binaries out
+#ARG CONTAINERD_VERSION=v1.1.2
+#ARG CONTAINERD_VERSION=47a128d
+#ARG CONTAINERD_VERSION=6c3e782f
+ARG CONTAINERD_VERSION=65839a47a88b0a1c5dc34981f1741eccefc9f2b0
+RUN git clone https://github.com/containerd/containerd.git /go/src/github.com/containerd/containerd && \
+    cd /go/src/github.com/containerd/containerd && \
+    git checkout ${CONTAINERD_VERSION} && \
+    make && \
+    make install
+COPY e2eengine/config.toml /etc/containerd/config.toml
+COPY --from=containerd-shim-process /bin/containerd-shim-process-v1 /bin/
+
+
+# TODO - consider replacing with an official image and a multi-stage build to pluck the binaries out
+ARG RUNC_VERSION=v1.0.0-rc5
+RUN git clone https://github.com/opencontainers/runc.git /go/src/github.com/opencontainers/runc && \
+    cd /go/src/github.com/opencontainers/runc && \
+    git checkout ${RUNC_VERSION} && \
+    make && \
+    make install
+
+ARG COMPOSE_VERSION=1.21.2
+RUN curl -L https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+
+ARG NOTARY_VERSION=v0.6.1
+RUN curl -Ls https://github.com/theupdateframework/notary/releases/download/${NOTARY_VERSION}/notary-Linux-amd64 -o /usr/local/bin/notary \
+    && chmod +x /usr/local/bin/notary
+
+ENV CGO_ENABLED=0 \
+    DISABLE_WARN_OUTSIDE_CONTAINER=1 \
+    PATH=/go/src/github.com/docker/cli/build:$PATH
+WORKDIR /go/src/github.com/docker/cli
+
+# Trust notary CA cert.
+COPY e2e/testdata/notary/root-ca.cert /usr/share/ca-certificates/notary.cert
+RUN echo 'notary.cert' >> /etc/ca-certificates.conf && update-ca-certificates
+
+COPY . .
+ARG VERSION
+ARG GITCOMMIT
+ENV VERSION=${VERSION} GITCOMMIT=${GITCOMMIT}
+RUN ./scripts/build/binary
+
+CMD ./scripts/test/e2e/entry

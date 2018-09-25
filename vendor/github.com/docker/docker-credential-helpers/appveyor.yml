@@ -2,13 +2,13 @@ image: Visual Studio 2015
 environment:
       GOPATH: c:\gopath
 
+stack: go 1.8.7
+
 clone_folder: c:\gopath\src\github.com\docker\docker-credential-helpers
 clone_depth: 10
 
 before_build:
   - set PATH=%PATH%;C:\MinGW\bin;
-  - set PATH=%PATH%;C:\go18\bin;
-  - set GOROOT=C:\go18
 
 build_script:
   - mingw32-make vet_win wincred

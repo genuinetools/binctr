@@ -1,109 +1,120 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/genuinetools/pkg/cli"
 	"github.com/genuinetools/reg/registry"
 	"github.com/genuinetools/reg/repoutils"
 	"github.com/genuinetools/reg/version"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
 )
 
 var (
-	auth types.AuthConfig
-	r    *registry.Registry
+	insecure    bool
+	forceNonSSL bool
+	skipPing    bool
+
+	timeout time.Duration
+
+	username string
+	password string
+
+	debug bool
 )
 
+//go:generate go run internal/binutils/generate.go
 func main() {
-	app := cli.NewApp()
-	app.Name = "reg"
-	app.Version = fmt.Sprintf("version %s, build %s", version.VERSION, version.GITCOMMIT)
-	app.Author = "The Genuinetools Authors"
-	app.Email = "no-reply@butts.com"
-	app.Usage = "Docker registry v2 client."
+	// Create a new cli program.
+	p := cli.NewProgram()
+	p.Name = "reg"
+	p.Description = "Docker registry v2 client"
+	// Set the GitCommit and Version.
+	p.GitCommit = version.GITCOMMIT
+	p.Version = version.VERSION
 
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "debug, d",
-			Usage: "run in debug mode",
-		},
-		cli.BoolFlag{
-			Name:  "insecure, k",
-			Usage: "do not verify tls certificates",
-		},
-		cli.BoolFlag{
-			Name:  "force-non-ssl, f",
-			Usage: "force allow use of non-ssl",
-		},
-		cli.StringFlag{
-			Name:  "username, u",
-			Usage: "username for the registry",
-		},
-		cli.StringFlag{
-			Name:  "password, p",
-			Usage: "password for the registry",
-		},
-		cli.StringFlag{
-			Name:   "registry, r",
-			Usage:  "URL to the private registry (ex. r.j3ss.co)",
-			Value:  repoutils.DefaultDockerRegistry,
-			EnvVar: "REG_REGISTRY",
-		},
+	// Build the list of available commands.
+	p.Commands = []cli.Command{
+		&digestCommand{},
+		&layerCommand{},
+		&listCommand{},
+		&manifestCommand{},
+		&removeCommand{},
+		&serverCommand{},
+		&tagsCommand{},
+		&vulnsCommand{},
 	}
 
-	app.Commands = []cli.Command{
-		deleteCommand,
-		layerCommand,
-		listCommand,
-		manifestCommand,
-		tagsCommand,
-		vulnsCommand,
-	}
+	// Setup the global flags.
+	p.FlagSet = flag.NewFlagSet("global", flag.ExitOnError)
+	p.FlagSet.BoolVar(&insecure, "insecure", false, "do not verify tls certificates")
+	p.FlagSet.BoolVar(&insecure, "k", false, "do not verify tls certificates")
 
-	app.Before = func(c *cli.Context) (err error) {
-		// Preload initializes any global options and configuration
-		// before the main or sub commands are run.
-		if c.GlobalBool("debug") {
+	p.FlagSet.BoolVar(&forceNonSSL, "force-non-ssl", false, "force allow use of non-ssl")
+	p.FlagSet.BoolVar(&forceNonSSL, "f", false, "force allow use of non-ssl")
+
+	p.FlagSet.BoolVar(&skipPing, "skip-ping", false, "skip pinging the registry while establishing connection")
+
+	p.FlagSet.DurationVar(&timeout, "timeout", time.Minute, "timeout for HTTP requests")
+
+	p.FlagSet.StringVar(&username, "username", "", "username for the registry")
+	p.FlagSet.StringVar(&username, "u", "", "username for the registry")
+
+	p.FlagSet.StringVar(&password, "password", "", "password for the registry")
+	p.FlagSet.StringVar(&password, "p", "", "password for the registry")
+
+	p.FlagSet.BoolVar(&debug, "d", false, "enable debug logging")
+
+	// Set the before function.
+	p.Before = func(ctx context.Context) error {
+		// On ^C, or SIGTERM handle exit.
+		signals := make(chan os.Signal, 0)
+		signal.Notify(signals, os.Interrupt)
+		signal.Notify(signals, syscall.SIGTERM)
+		_, cancel := context.WithCancel(ctx)
+		go func() {
+			for sig := range signals {
+				cancel()
+				logrus.Infof("Received %s, exiting.", sig.String())
+				os.Exit(0)
+			}
+		}()
+
+		// Set the log level.
+		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 
-		if len(c.Args()) == 0 {
-			return
-		}
-
-		if c.Args()[0] == "help" {
-			return
-		}
-
-		auth, err = repoutils.GetAuthConfig(c.GlobalString("username"), c.GlobalString("password"), c.GlobalString("registry"))
-		if err != nil {
-			return err
-		}
-
-		// Prevent non-ssl unless explicitly forced
-		if !c.GlobalBool("force-non-ssl") && strings.HasPrefix(auth.ServerAddress, "http:") {
-			return fmt.Errorf("Attempt to use insecure protocol! Use non-ssl option to force")
-		}
-
-		// create the registry client
-		if c.GlobalBool("insecure") {
-			r, err = registry.NewInsecure(auth, c.GlobalBool("debug"))
-			if err != nil {
-				return err
-			}
-
-			return
-		}
-
-		r, err = registry.New(auth, c.GlobalBool("debug"))
-		return err
+		return nil
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		logrus.Fatal(err)
+	// Run our program.
+	p.Run()
+}
+
+func createRegistryClient(domain string) (*registry.Registry, error) {
+	auth, err := repoutils.GetAuthConfig(username, password, domain)
+	if err != nil {
+		return nil, err
 	}
+
+	// Prevent non-ssl unless explicitly forced
+	if !forceNonSSL && strings.HasPrefix(auth.ServerAddress, "http:") {
+		return nil, fmt.Errorf("Attempted to use insecure protocol! Use force-non-ssl option to force")
+	}
+
+	// Create the registry client.
+	return registry.New(auth, registry.Opt{
+		Insecure: insecure,
+		Debug:    debug,
+		SkipPing: skipPing,
+		Timeout:  timeout,
+	})
 }

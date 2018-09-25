@@ -16,6 +16,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/intelrdt"
 	"github.com/opencontainers/runc/libcontainer/specconv"
+	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
@@ -38,6 +39,13 @@ func loadFactory(context *cli.Context) (libcontainer.Factory, error) {
 	// We default to cgroupfs, and can only use systemd if the system is a
 	// systemd box.
 	cgroupManager := libcontainer.Cgroupfs
+	rootless, err := isRootless(context)
+	if err != nil {
+		return nil, err
+	}
+	if rootless {
+		cgroupManager = libcontainer.RootlessCgroupfs
+	}
 	if context.GlobalBool("systemd-cgroup") {
 		if systemd.UseSystemd() {
 			cgroupManager = libcontainer.SystemdCgroups
@@ -97,7 +105,7 @@ func getDefaultImagePath(context *cli.Context) string {
 
 // newProcess returns a new libcontainer Process with the arguments from the
 // spec and stdio from the current process.
-func newProcess(p specs.Process) (*libcontainer.Process, error) {
+func newProcess(p specs.Process, init bool) (*libcontainer.Process, error) {
 	lp := &libcontainer.Process{
 		Args: p.Args,
 		Env:  p.Env,
@@ -107,6 +115,7 @@ func newProcess(p specs.Process) (*libcontainer.Process, error) {
 		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
 		AppArmorProfile: p.ApparmorProfile,
+		Init:            init,
 	}
 
 	if p.ConsoleSize != nil {
@@ -217,19 +226,37 @@ func createPidFile(path string, process *libcontainer.Process) error {
 	return os.Rename(tmpName, path)
 }
 
-// XXX: Currently we autodetect rootless mode.
-func isRootless() bool {
-	return os.Geteuid() != 0
+func isRootless(context *cli.Context) (bool, error) {
+	if context != nil {
+		b, err := parseBoolOrAuto(context.GlobalString("rootless"))
+		if err != nil {
+			return false, err
+		}
+		if b != nil {
+			return *b, nil
+		}
+		// nil b stands for "auto detect"
+	}
+	// Even if os.Geteuid() == 0, it might still require rootless mode,
+	// especially when running within userns.
+	// So we use system.GetParentNSeuid() here.
+	//
+	// TODO(AkihiroSuda): how to support nested userns?
+	return system.GetParentNSeuid() != 0 || system.RunningInUserNS(), nil
 }
 
 func createContainer(context *cli.Context, id string, spec *specs.Spec) (libcontainer.Container, error) {
+	rootless, err := isRootless(context)
+	if err != nil {
+		return nil, err
+	}
 	config, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		CgroupName:       id,
 		UseSystemdCgroup: context.GlobalBool("systemd-cgroup"),
 		NoPivotRoot:      context.Bool("no-pivot"),
 		NoNewKeyring:     context.Bool("no-new-keyring"),
 		Spec:             spec,
-		Rootless:         isRootless(),
+		Rootless:         rootless,
 	})
 	if err != nil {
 		return nil, err
@@ -243,6 +270,7 @@ func createContainer(context *cli.Context, id string, spec *specs.Spec) (libcont
 }
 
 type runner struct {
+	init            bool
 	enableSubreaper bool
 	shouldDestroy   bool
 	detach          bool
@@ -261,7 +289,7 @@ func (r *runner) run(config *specs.Process) (int, error) {
 		r.destroy()
 		return -1, err
 	}
-	process, err := newProcess(*config)
+	process, err := newProcess(*config, r.init)
 	if err != nil {
 		r.destroy()
 		return -1, err
@@ -424,6 +452,7 @@ func startContainer(context *cli.Context, spec *specs.Spec, action CtAct, criuOp
 		preserveFDs:     context.Int("preserve-fds"),
 		action:          action,
 		criuOpts:        criuOpts,
+		init:            true,
 	}
 	return r.run(spec.Process)
 }

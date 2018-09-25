@@ -1,84 +1,83 @@
 # reg
 
-[![Travis CI](https://travis-ci.org/genuinetools/reg.svg?branch=master)](https://travis-ci.org/genuinetools/reg)
+[![Travis CI](https://img.shields.io/travis/genuinetools/reg.svg?style=for-the-badge)](https://travis-ci.org/genuinetools/reg)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=for-the-badge)](https://godoc.org/github.com/genuinetools/reg)
+[![Github All Releases](https://img.shields.io/github/downloads/genuinetools/reg/total.svg?style=for-the-badge)](https://github.com/genuinetools/reg/releases)
 
-Docker registry v2 command line client.
+Docker registry v2 command line client and repo listing generator with security checks.
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Auth](#auth)
-- [List Repositories and Tags](#list-repositories-and-tags)
-- [Get a Manifest](#get-a-manifest)
-- [Download a Layer](#download-a-layer)
-- [Delete an Image](#delete-an-image)
-- [Vulnerability Reports](#vulnerability-reports)
-- [Testing](#testing)
+ * [Installation](README.md#installation)
+      * [Binaries](README.md#binaries)
+      * [Via Go](README.md#via-go)
+ * [Usage](README.md#usage)
+   * [Auth](README.md#auth)
+   * [List Repositories and Tags](README.md#list-repositories-and-tags)
+   * [Get a Manifest](README.md#get-a-manifest)
+   * [Get the Digest](README.md#get-the-digest)
+   * [Download a Layer](README.md#download-a-layer)
+   * [Delete an Image](README.md#delete-an-image)
+   * [Vulnerability Reports](README.md#vulnerability-reports)
+   * [Running a Static UI Server for a Registry](README.md#running-a-static-ui-server-for-a-registry)
+   * [Using Self-Signed Certs with a Registry](README.md#using-self-signed-certs-with-a-registry)
+ * [Contributing](README.md#contributing)
 
 ## Installation
 
 #### Binaries
 
-- **darwin** [386](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-darwin-386) / [amd64](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-darwin-amd64)
-- **linux** [386](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-386) / [amd64](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-amd64) / [arm](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-arm) / [arm64](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-arm64)
-- **windows** [386](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-windows-386) / [amd64](https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-windows-amd64)
+For installation instructions from binaries please visit the [Releases Page](https://github.com/genuinetools/reg/releases).
 
 #### Via Go
 
-```bash
+```console
 $ go get github.com/genuinetools/reg
 ```
 
 ## Usage
 
 ```console
-$ reg
-NAME:
-   reg - Docker registry v2 client.
+$ reg -h
+reg -  Docker registry v2 client.
 
-USAGE:
-   reg [global options] command [command options] [arguments...]
+Usage: reg <command>
 
-VERSION:
-   version v0.13.0, build 3b7dafb
+Flags:
 
-AUTHOR:
-   The Genuinetools Authors <no-reply@butts.com>
+  -d                   enable debug logging (default: false)
+  -f, --force-non-ssl  force allow use of non-ssl (default: false)
+  -k, --insecure       do not verify tls certificates (default: false)
+  -p, --password       password for the registry (default: <none>)
+  --skip-ping          skip pinging the registry while establishing connection (default: false)
+  --timeout            timeout for HTTP requests (default: 1m0s)
+  -u, --username       username for the registry (default: <none>)
 
-COMMANDS:
-     delete, rm       delete a specific reference of a repository
-     layer, download  download a layer for the specific reference of a repository
-     list, ls         list all repositories
-     manifest         get the json manifest for the specific reference of a repository
-     tags             get the tags for a repository
-     vulns            get a vulnerability report for the image from CoreOS Clair
-     help, h          Shows a list of commands or help for one command
+Commands:
 
-GLOBAL OPTIONS:
-   --debug, -d                 run in debug mode
-   --insecure, -k              do not verify tls certificates
-   --force-non-ssl, -f         force allow use of non-ssl
-   --username value, -u value  username for the registry
-   --password value, -p value  password for the registry
-   --registry value, -r value  URL to the private registry (ex. r.j3ss.co) (default: "https://registry-1.docker.io") [$REG_REGISTRY]
-   --help, -h                  show help
-   --version, -v               print the version
+  digest    Get the digest for a repository.
+  layer     Download a layer for a repository.
+  ls        List all repositories.
+  manifest  Get the json manifest for a repository.
+  rm        Delete a specific reference of a repository.
+  server    Run a static UI server for a registry.
+  tags      Get the tags for a repository.
+  vulns     Get a vulnerability report for a repository from a CoreOS Clair server.
+  version   Show the version information.
 ```
 
-Note that the `--registry` can be set by an environment variable `REG_REGISTRY`, so you can set this in your shell login scripts.
-Specifying the registry on the command-line will override an environment variable setting.
+**NOTE:** Be aware that `reg ls` doesn't work with `hub.docker.com` as it has a different API than the [OSS Docker Registry](https://github.com/docker/distribution).
 
-## Auth
+### Auth
 
 `reg` will automatically try to parse your docker config credentials, but if
 not present, you can pass through flags directly.
 
-## List Repositories and Tags
+### List Repositories and Tags
 
 **Repositories**
 
 ```console
 # this command might take a while if you have hundreds of images like I do
-$ reg -r r.j3ss.co ls
+$ reg ls r.j3ss.co
 Repositories for r.j3ss.co
 REPO                  TAGS
 awscli                latest
@@ -91,17 +90,31 @@ chrome                beta, latest, stable
 **Tags**
 
 ```console
-$ reg tags tor-browser
+$ reg tags r.j3ss.co/tor-browser
 alpha
 hardened
 latest
 stable
+
+# or for an offical image
+$ reg tags debian
+6
+6.0
+6.0.10
+6.0.8
+6.0.9
+7
+7-slim
+7.10
+7.11
+7.11-slim
+...
 ```
 
-## Get a Manifest
+### Get a Manifest
 
 ```console
-$ reg manifest htop
+$ reg manifest r.j3ss.co/htop
 {
    "schemaVersion": 1,
    "name": "htop",
@@ -119,26 +132,32 @@ $ reg manifest htop
  }
 ```
 
-## Download a Layer
+### Get the Digest
+```console
+$ reg digest r.j3ss.co/htop
+sha256:791158756cc0f5b27ef8c5c546284568fc9b7f4cf1429fb736aff3ee2d2e340f
+```
+
+### Download a Layer
 
 ```console
-$ reg layer -o chrome@sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
+$ reg layer -o r.j3ss.co/chrome@sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
 OR
-$ reg layer chrome@sha256:a3ed95caeb0.. > layer.tar
+$ reg layer r.j3ss.co/chrome@sha256:a3ed95caeb0.. > layer.tar
 ```
 
 
-## Delete an Image
+### Delete an Image
 
 ```console
-$ reg rm chrome@sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
+$ reg rm r.j3ss.co/chrome@sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
 Deleted chrome@sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
 ```
 
-## Vulnerability Reports
+### Vulnerability Reports
 
 ```console
-$ reg vulns --clair https://clair.j3ss.co chrome
+$ reg vulns --clair https://clair.j3ss.co r.j3ss.co/chrome
 Found 32 vulnerabilities
 CVE-2015-5180: [Low]
 
@@ -175,7 +194,75 @@ Medium: 3
 High: 1
 ```
 
-## Testing
+### Generating Static Website for a Registry
+
+`reg` bundles a HTTP server that periodically generates a static website
+with a list of registry images and serves it to the web.
+
+It will run vulnerability scanning if you
+have a [CoreOS Clair](https://github.com/coreos/clair) server set up
+and pass the url with the `--clair` flag.
+
+It is possible to run `reg server` just as a one time static generator.
+`--once` flag makes the `server` command exit after it builds the HTML listing.
+
+There is a demo at [r.j3ss.co](https://r.j3ss.co).
+
+**Usage:**
+
+```console
+$ reg server -h
+Usage: reg server [OPTIONS]
+
+Run a static UI server for a registry.
+
+Flags:
+
+  -u, --username       username for the registry (default: <none>)
+  --listen-address     address to listen on (default: <none>)
+  --asset-path         Path to assets and templates (default: <none>)
+  -f, --force-non-ssl  force allow use of non-ssl (default: false)
+  --once               generate the templates once and then exit (default: false)
+  --skip-ping          skip pinging the registry while establishing connection (default: false)
+  --timeout            timeout for HTTP requests (default: 1m0s)
+  --cert               path to ssl cert (default: <none>)
+  -d                   enable debug logging (default: false)
+  --key                path to ssl key (default: <none>)
+  --port               port for server to run on (default: 8080)
+  -r, --registry       URL to the private registry (ex. r.j3ss.co) (default: <none>)
+  --clair              url to clair instance (default: <none>)
+  -k, --insecure       do not verify tls certificates (default: false)
+  --interval           interval to generate new index.html's at (default: 1h0m0s)
+  -p, --password       password for the registry (default: <none>)
+```
+
+**Screenshots:**
+
+![home.png](server/home.png)
+
+![vuln.png](server/vuln.png)
+
+### Using Self-Signed Certs with a Registry
+
+We do not allow users to pass all the custom certificate flags on commands
+because it is unnecessarily messy and can be handled through Linux itself.
+Which we believe is a better user experience than having to pass three
+different flags just to communicate with a registry using self-signed or
+private certificates.
+
+Below are instructions on adding a self-signed or private certificate to your
+trusted ca-certificates on Linux.
+
+Make sure you have the package `ca-certificates` installed.
+
+Copy the public half of your CA certificate (the one used to sign the CSR) into
+the CA certificate directory (as root):
+
+```console
+$ cp cacert.pem /usr/share/ca-certificates
+```
+
+## Contributing
 
 If you plan on contributing you should be able to run the tests locally. The
 tests run for CI via docker-in-docker. But running locally with `go test`, you
@@ -186,5 +273,7 @@ Add the flag `--insecure-registry localhost:5000` to your docker daemon,
 documented [here](https://docs.docker.com/registry/insecure/) for testing
 against an insecure registry.
 
-OR run `make dind dtest` to avoid having to change your local docker config and
+**OR** 
+
+Run `make dind dtest` to avoid having to change your local docker config and
 to run the tests as docker-in-docker.

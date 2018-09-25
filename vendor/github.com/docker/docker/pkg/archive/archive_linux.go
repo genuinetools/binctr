@@ -80,9 +80,9 @@ func (overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool,
 		if err := unix.Mknod(originalPath, unix.S_IFCHR, 0); err != nil {
 			return false, err
 		}
-		if err := os.Chown(originalPath, hdr.Uid, hdr.Gid); err != nil {
+		/*if err := os.Chown(originalPath, hdr.Uid, hdr.Gid); err != nil {
 			return false, err
-		}
+		}*/
 
 		// don't write the file itself
 		return false, nil

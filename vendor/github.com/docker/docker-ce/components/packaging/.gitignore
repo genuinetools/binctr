@@ -1,0 +1,6 @@
+build
+debbuild
+rpmbuild
+tmp
+artifacts
+sources

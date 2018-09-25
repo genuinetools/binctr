@@ -9,6 +9,7 @@ BINARY_NATIVE_IMAGE_NAME = docker-cli-native$(IMAGE_TAG)
 LINTER_IMAGE_NAME = docker-cli-lint$(IMAGE_TAG)
 CROSS_IMAGE_NAME = docker-cli-cross$(IMAGE_TAG)
 VALIDATE_IMAGE_NAME = docker-cli-shell-validate$(IMAGE_TAG)
+E2E_IMAGE_NAME = docker-cli-e2e$(IMAGE_TAG)
 MOUNTS = -v "$(CURDIR)":/go/src/github.com/docker/cli
 VERSION = $(shell cat VERSION)
 ENVVARS = -e VERSION=$(VERSION) -e GITCOMMIT -e PLATFORM
@@ -35,84 +36,93 @@ build_shell_validate_image:
 build_binary_native_image:
 	docker build -t $(BINARY_NATIVE_IMAGE_NAME) -f ./dockerfiles/Dockerfile.binary-native .
 
+.PHONY: build_e2e_image
+build_e2e_image:
+	docker build -t $(E2E_IMAGE_NAME) --build-arg VERSION=$(VERSION) --build-arg GITCOMMIT=$(GITCOMMIT) -f ./dockerfiles/Dockerfile.e2e .
 
-# build executable using a container
-binary: build_binary_native_image
+
+binary: build_binary_native_image ## build the CLI
 	docker run --rm $(ENVVARS) $(MOUNTS) $(BINARY_NATIVE_IMAGE_NAME)
 
-build: binary
+build: binary ## alias for binary
 
-
-# clean build artifacts using a container
 .PHONY: clean
-clean: build_docker_image
+clean: build_docker_image ## clean build artifacts
 	docker run --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make clean
 
-# run go test
 .PHONY: test-unit
-test-unit: build_docker_image
+test-unit: build_docker_image # run unit tests (using go test)
 	docker run --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make test-unit
 
-.PHONY: test
+.PHONY: test ## run unit and e2e tests
 test: test-unit test-e2e
 
-# build the CLI for multiple architectures using a container
 .PHONY: cross
-cross: build_cross_image
+cross: build_cross_image ## build the CLI for macOS and Windows
 	docker run --rm $(ENVVARS) $(MOUNTS) $(CROSS_IMAGE_NAME) make cross
 
 .PHONY: binary-windows
-binary-windows: build_cross_image
+binary-windows: build_cross_image ## build the CLI for Windows
 	docker run --rm $(ENVVARS) $(MOUNTS) $(CROSS_IMAGE_NAME) make $@
 
 .PHONY: binary-osx
-binary-osx: build_cross_image
+binary-osx: build_cross_image ## build the CLI for macOS
 	docker run --rm $(ENVVARS) $(MOUNTS) $(CROSS_IMAGE_NAME) make $@
 
-.PHONY: watch
-watch: build_docker_image
-	docker run --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make watch
-
-# start container in interactive mode for in-container development
 .PHONY: dev
-dev: build_docker_image
+dev: build_docker_image ## start a build container in interactive mode for in-container development
 	docker run -ti $(ENVVARS) $(MOUNTS) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		$(DEV_DOCKER_IMAGE_NAME) ash
 
-shell: dev
+shell: dev ## alias for dev
 
-# run linters in a container
 .PHONY: lint
-lint: build_linter_image
+lint: build_linter_image ## run linters
 	docker run -ti $(ENVVARS) $(MOUNTS) $(LINTER_IMAGE_NAME)
 
-# download dependencies (vendor/) listed in vendor.conf, using a container
 .PHONY: vendor
-vendor: build_docker_image vendor.conf
+vendor: build_docker_image vendor.conf ## download dependencies (vendor/) listed in vendor.conf
 	docker run -ti --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make vendor
 
-dynbinary: build_cross_image
+dynbinary: build_cross_image ## build the CLI dynamically linked
 	docker run -ti --rm $(ENVVARS) $(MOUNTS) $(CROSS_IMAGE_NAME) make dynbinary
 
 .PHONY: authors
 authors: ## generate AUTHORS file from git history
 	docker run -ti --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make authors
 
-## generate man pages from go source and markdown
 .PHONY: manpages
-manpages: build_docker_image
+manpages: build_docker_image ## generate man pages from go source and markdown
 	docker run -ti --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make manpages
 
-## Generate documentation YAML files consumed by docs repo
 .PHONY: yamldocs
-yamldocs: build_docker_image
+yamldocs: build_docker_image ## generate documentation YAML files consumed by docs repo
 	docker run -ti --rm $(ENVVARS) $(MOUNTS) $(DEV_DOCKER_IMAGE_NAME) make yamldocs
 
 .PHONY: shellcheck
-shellcheck: build_shell_validate_image
+shellcheck: build_shell_validate_image ## run shellcheck validation
 	docker run -ti --rm $(ENVVARS) $(MOUNTS) $(VALIDATE_IMAGE_NAME) make shellcheck
 
-.PHONY: test-e2e
-test-e2e: binary
-	./scripts/test/e2e/wrapper
+.PHONY: test-e2e ## run e2e tests
+test-e2e: test-e2e-non-experimental test-e2e-experimental test-e2e-containerized
+
+.PHONY: test-e2e-experimental
+test-e2e-experimental: build_e2e_image
+	docker run -e DOCKERD_EXPERIMENTAL=1 --rm -v /var/run/docker.sock:/var/run/docker.sock $(E2E_IMAGE_NAME)
+
+.PHONY: test-e2e-non-experimental
+test-e2e-non-experimental: build_e2e_image
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock $(E2E_IMAGE_NAME)
+
+.PHONY: test-e2e-containerized
+test-e2e-containerized: build_e2e_image
+	docker run --rm --privileged \
+	    -v /var/lib/docker \
+	    -v /var/lib/containerd \
+	    -v /lib/modules:/lib/modules \
+	    $(E2E_IMAGE_NAME) /go/src/github.com/docker/cli/scripts/test/engine/entry
+
+.PHONY: help
+help: ## print this help
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)

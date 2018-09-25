@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+ENGINE_DIR=$1
+VERSION=$2
+
+[[ $# < 2 ]] && echo 'not enough args' && exit 1
+
+DATE_COMMAND="date"
+if [[ $(uname) -eq "Darwin" ]]; then
+    DATE_COMMAND="docker run --rm alpine date"
+fi
+
+GIT_COMMAND="git -C $ENGINE_DIR"
+origVersion="$VERSION"
+rpmVersion="$VERSION"
+rpmRelease=3
+
+# rpmRelease versioning is as follows
+# Docker 18.01.0-ce:  version=18.01.0.ce, release=3
+# Docker 18.01.0-ce-tp1: version=18.01.0.ce, release=0.1.tp1
+# Docker 18.01.0-ce-beta1: version=18.01.0.ce, release=1.1.beta1
+# Docker 18.01.0-ce-rc1: version=18.01.0.ce, release=2.1.rc1
+# Docker 18.01.0-ce-cs1: version=18.01.0.ce.cs1, release=1
+# Docker 18.01.0-ce-cs1-rc1: version=18.01.0.ce.cs1, release=0.1.rc1
+# Docker 18.01.0-ce-dev nightly: version=18.01.0.ce, release=0.0.YYYYMMDD.HHMMSS.gitHASH
+
+if [[ "$rpmVersion" =~ .*-tp[0-9]+$ ]]; then
+    tpVersion=${rpmVersion#*-tp}
+    rpmVersion=${rpmVersion%-tp*}
+    rpmRelease="0.${tpVersion}.tp${tpVersion}"
+elif [[ "$rpmVersion" =~ .*-beta[0-9]+$ ]]; then
+    betaVersion=${rpmVersion#*-beta}
+    rpmVersion=${rpmVersion%-beta*}
+    rpmRelease="1.${betaVersion}.beta${betaVersion}"
+elif [[ "$rpmVersion" =~ .*-rc[0-9]+$ ]]; then
+    rcVersion=${rpmVersion#*-rc}
+    rpmVersion=${rpmVersion%-rc*}
+    rpmRelease="2.${rcVersion}.rc${rcVersion}"
+fi
+
+DOCKER_GITCOMMIT=$($GIT_COMMAND rev-parse --short HEAD)
+if [ -n "$($GIT_COMMAND status --porcelain --untracked-files=no)" ]; then
+    DOCKER_GITCOMMIT="$DOCKER_GITCOMMIT-unsupported"
+fi
+
+# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
+if [[ "$rpmVersion" == *-dev ]] || [ -n "$($GIT_COMMAND status --porcelain)" ]; then
+    # based on golang's pseudo-version: https://groups.google.com/forum/#!topic/golang-dev/a5PqQuBljF4
+    #
+    # using a "pseudo-version" of the form v0.0.0-yyyymmddhhmmss-abcdefabcdef,
+    # where the time is the commit time in UTC and the final suffix is the prefix
+    # of the commit hash. The time portion ensures that two pseudo-versions can
+    # be compared to determine which happened later, the commit hash identifes
+    # the underlying commit, and the v0.0.0- prefix identifies the pseudo-version
+    # as a pre-release before version v0.0.0, so that the go command prefers any
+    # tagged release over any pseudo-version.
+    gitUnix="$($GIT_COMMAND log -1 --pretty='%ct')"
+    gitDate="$($DATE_COMMAND --utc --date "@$gitUnix" +'%Y%m%d%H%M%S')"
+    gitCommit="$($GIT_COMMAND log -1 --pretty='%h')"
+    # rpmVersion is now something like '0.0.0-20180719213702-cd5e2db'
+    rpmVersion="0.0.0-${gitDate}-${gitCommit}"
+    rpmRelease="0"
+    origVersion=$rpmVersion
+fi
+
+# Replace any other dashes with periods
+rpmVersion="${rpmVersion//-/.}"
+echo $rpmVersion $rpmRelease $DOCKER_GITCOMMIT $origVersion

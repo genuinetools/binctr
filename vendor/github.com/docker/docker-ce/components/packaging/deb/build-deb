@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -x
+set -e
+
+EPOCH="${EPOCH:-}"
+EPOCH_SEP=""
+if [[ ! -z "$EPOCH" ]]; then
+    EPOCH_SEP=":"
+fi
+
+if [[ -z "$DEB_VERSION" ]]; then
+    echo "DEB_VERSION is required to build deb packages"
+    exit 1
+fi
+
+echo VERSION AAA $VERSION
+
+VERSION=${VERSION:-$( cat cli/VERSION )}
+
+echo VERSION bbb $VERSION
+
+debSource="$(awk -F ': ' '$1 == "Source" { print $2; exit }' debian/control)"
+debMaintainer="$(awk -F ': ' '$1 == "Maintainer" { print $2; exit }' debian/control)"
+debDate="$(date --rfc-2822)"
+
+cat > "debian/changelog" <<-EOF
+$debSource (${EPOCH}${EPOCH_SEP}${DEB_VERSION}-0~${DISTRO}-${SUITE}) $SUITE; urgency=low
+  * Version: $VERSION
+ -- $debMaintainer  $debDate
+EOF
+# The space above at the start of the line for the debMaintainer is very important
+
+# Give the script a git commit because it wants it
+export DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT-$(cd cli; $GIT_COMMAND rev-parse --short HEAD)}
+
+echo VERSION BBB $VERSION
+dpkg-buildpackage -uc -us -I.git
+destination="/build"
+mkdir -p "$destination"
+mv -v /root/docker* "$destination"

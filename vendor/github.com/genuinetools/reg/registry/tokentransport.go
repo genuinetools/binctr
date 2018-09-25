@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +46,11 @@ func (t *TokenTransport) authAndRetry(authService *authService, req *http.Reques
 		return authResp, err
 	}
 
-	return t.retry(req, token)
+	response, err := t.retry(req, token)
+	if response != nil {
+		response.Header.Set("request-token", token)
+	}
+	return response, err
 }
 
 func (t *TokenTransport) auth(authService *authService) (string, *http.Response, error) {
@@ -114,7 +120,8 @@ func isTokenDemand(resp *http.Response) (*authService, error) {
 	return parseAuthHeader(resp.Header)
 }
 
-// Token returns the required token for the specific resource url.
+// Token returns the required token for the specific resource url. If the registry requires basic authentication, this
+// function returns ErrBasicAuth.
 func (r *Registry) Token(url string) (string, error) {
 	r.Logf("registry.token url=%s", url)
 
@@ -123,7 +130,19 @@ func (r *Registry) Token(url string) (string, error) {
 		return "", err
 	}
 
-	resp, err := r.Client.Do(req)
+	client := http.DefaultClient
+	if r.Opt.Insecure {
+		client = &http.Client{
+			Timeout: r.Opt.Timeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		}
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -143,7 +162,7 @@ func (r *Registry) Token(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err = r.Client.Do(authReq)
+	resp, err = http.DefaultClient.Do(authReq)
 	if err != nil {
 		return "", err
 	}
@@ -163,4 +182,27 @@ func (r *Registry) Token(url string) (string, error) {
 	}
 
 	return authToken.Token, nil
+}
+
+// Headers returns the authorization headers for a specific uri.
+func (r *Registry) Headers(uri string) (map[string]string, error) {
+	// Get the token.
+	token, err := r.Token(uri)
+	if err != nil {
+		if err == ErrBasicAuth {
+			// If we couldn't get a token because the server requires basic auth, just return basic auth headers.
+			return map[string]string{
+				"Authorization": fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(r.Username+":"+r.Password))),
+			}, nil
+		}
+	}
+
+	if len(token) < 1 {
+		r.Logf("got empty token for %s", uri)
+		return map[string]string{}, nil
+	}
+
+	return map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", token),
+	}, nil
 }

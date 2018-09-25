@@ -11,18 +11,13 @@
 [Org]
 	[Org."Core maintainers"]
 		people = [
-			"aaronlehmann",
-			"calavera",
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
 			"dnephin",
-			"dongluochen",
 			"duglin",
 			"estesp",
-			"icecrime",
 			"jhowardmsft",
-			"lk4d4",
 			"mavenugo",
 			"mhbauer",
 			"n4ss",
@@ -45,16 +40,6 @@
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
 
-	[people.aaronlehmann]
-	Name = "Aaron Lehmann"
-	Email = "aaron.lehmann@docker.com"
-	GitHub = "aaronlehmann"
-
-	[people.calavera]
-	Name = "David Calavera"
-	Email = "david.calavera@gmail.com"
-	GitHub = "calavera"
-
 	[people.coolljt0725]
 	Name = "Lei Jitang"
 	Email = "leijitang@huawei.com"
@@ -75,11 +60,6 @@
 	Email = "dnephin@gmail.com"
 	GitHub = "dnephin"
 
-	[people.dongluochen]
-	Name = "Dongluo Chen"
-	Email = "dongluo.chen@docker.com"
-	GitHub = "dongluochen"
-
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
@@ -90,20 +70,10 @@
 	Email = "estesp@linux.vnet.ibm.com"
 	GitHub = "estesp"
 
-	[people.icecrime]
-	Name = "Arnaud Porterie"
-	Email = "arnaud@docker.com"
-	GitHub = "icecrime"
-
 	[people.jhowardmsft]
 	Name = "John Howard"
 	Email = "jhoward@microsoft.com"
 	GitHub = "jhowardmsft"
-
-	[people.lk4d4]
-	Name = "Alexander Morozov"
-	Email = "lk4d4@docker.com"
-	GitHub = "lk4d4"
 
 	[people.mavenugo]
 	Name = "Madhu Venugopal"

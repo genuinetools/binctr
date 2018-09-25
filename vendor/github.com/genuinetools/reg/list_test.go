@@ -6,14 +6,15 @@ import (
 )
 
 func TestList(t *testing.T) {
-	out, err := run("ls")
+	out, err := run("ls", domain)
 	if err != nil {
-		t.Fatalf("output: %s, error: %v", string(out), err)
+		t.Fatalf("output: %s, error: %v", out, err)
 	}
-	expected := []string{"alpine              latest", "busybox             glibc, musl"}
-	for _, e := range expected {
-		if !strings.Contains(out, e) {
-			t.Logf("expected to contain: %s\ngot: %s", e, out)
-		}
+
+	expected := `REPO                TAGS
+alpine              3.5, latest
+busybox             glibc, latest, musl`
+	if !strings.HasSuffix(strings.TrimSpace(out), expected) {
+		t.Fatalf("expected to contain: %s\ngot: %s", expected, out)
 	}
 }

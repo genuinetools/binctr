@@ -27,7 +27,9 @@
 			"cpuguy83",
 			"dnephin",
 			"justincormack",
+			"silvin-lubecki",
 			"stevvooe",
+			"thajeztah",
 			"tibor",
 			"tonistiigi",
 			"vdemeester",
@@ -39,7 +41,6 @@
 	# TODO Describe the docs maintainers role.
 
 		people = [
-			"misty",
 			"thajeztah"
 		]
 
@@ -93,19 +94,19 @@
 	Email = "justin.cormack@docker.com"
 	GitHub = "justincormack"
 
-	[people.misty]
-	Name = "Misty Stanley-Jones"
-	Email = "misty@docker.com"
-	GitHub = "mistyhacks"
-
 	[people.programmerq]
 	Name = "Jeff Anderson"
 	Email = "jeff@docker.com"
 	GitHub = "programmerq"
 
+	[people.silvin-lubecki]
+	Name = "Silvin Lubecki"
+	Email = "silvin.lubecki@docker.com"
+	GitHub = "silvin-lubecki"
+
 	[people.stevvooe]
 	Name = "Stephen Day"
-	Email = "stephen.day@docker.com"
+	Email = "stevvooe@gmail.com"
 	GitHub = "stevvooe"
 
 	[people.thajeztah]

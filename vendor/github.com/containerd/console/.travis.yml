@@ -1,8 +1,6 @@
 language: go
 go:
-  - 1.9.3
-  - 1.9.4
-  - tip
+  - "1.10.x"
 
 go_import_path: github.com/containerd/console
 
@@ -19,8 +17,3 @@ script:
   - GOOS=solaris go build
   - GOOS=solaris go test -c
   - GOOS=windows go test
-
-matrix:
-  allow_failures:
-    - go: 1.9.4
-

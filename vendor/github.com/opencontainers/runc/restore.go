@@ -96,7 +96,11 @@ using the runc checkpoint command.`,
 			return err
 		}
 		// XXX: Currently this is untested with rootless containers.
-		if isRootless() {
+		rootless, err := isRootless(context)
+		if err != nil {
+			return err
+		}
+		if rootless {
 			return fmt.Errorf("runc restore requires root")
 		}
 
@@ -105,6 +109,9 @@ using the runc checkpoint command.`,
 			return err
 		}
 		options := criuOptions(context)
+		if err := setEmptyNsMask(context, options); err != nil {
+			return err
+		}
 		status, err := startContainer(context, spec, CT_ACT_RESTORE, options)
 		if err != nil {
 			return err

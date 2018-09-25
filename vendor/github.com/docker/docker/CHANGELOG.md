@@ -5,6 +5,28 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 17.03.2-ce (2017-05-29)
+
+### Networking
+
+- Fix a concurrency issue preventing network creation [#33273](https://github.com/moby/moby/pull/33273)
+
+### Runtime
+
+- Relabel secrets path to avoid a Permission Denied on selinux enabled systems [#33236](https://github.com/moby/moby/pull/33236) (ref [#32529](https://github.com/moby/moby/pull/32529)
+- Fix cases where local volume were not properly relabeled if needed [#33236](https://github.com/moby/moby/pull/33236) (ref [#29428](https://github.com/moby/moby/pull/29428))
+- Fix an issue while upgrading if a plugin rootfs was still mounted [#33236](https://github.com/moby/moby/pull/33236) (ref [#32525](https://github.com/moby/moby/pull/32525))
+- Fix an issue where volume wouldn't default to the `rprivate` propagation mode [#33236](https://github.com/moby/moby/pull/33236) (ref [#32851](https://github.com/moby/moby/pull/32851))
+- Fix a panic that could occur when a volume driver could not be retrieved [#33236](https://github.com/moby/moby/pull/33236) (ref [#32347](https://github.com/moby/moby/pull/32347))
++ Add a warning in `docker info` when the `overlay` or `overlay2` graphdriver is used on a filesystem without `d_type` support [#33236](https://github.com/moby/moby/pull/33236) (ref [#31290](https://github.com/moby/moby/pull/31290))
+- Fix an issue with backporting mount spec to older volumes [#33207](https://github.com/moby/moby/pull/33207)
+- Fix issue where a failed unmount can lead to data loss on local volume remove [#33120](https://github.com/moby/moby/pull/33120)
+
+### Swarm Mode
+
+- Fix a case where tasks could get killed unexpectedly [#33118](https://github.com/moby/moby/pull/33118)
+- Fix an issue preventing to deploy services if the registry cannot be reached despite the needed images being locally present [#33117](https://github.com/moby/moby/pull/33117)
+
 ## 17.05.0-ce (2017-05-04)
 
 ### Builder
@@ -77,7 +99,7 @@ be found.
 * Add `--format` option to `docker node ls` [#30424](https://github.com/docker/docker/pull/30424)
 * Add `--prune` option to `docker stack deploy` to remove services that are no longer defined in the docker-compose file [#31302](https://github.com/docker/docker/pull/31302)
 * Add `PORTS` column for `docker service ls` when using `ingress` mode [#30813](https://github.com/docker/docker/pull/30813)
-- Fix unnescessary re-deploying of tasks when environment-variables are used [#32364](https://github.com/docker/docker/pull/32364)
+- Fix unnecessary re-deploying of tasks when environment-variables are used [#32364](https://github.com/docker/docker/pull/32364)
 - Fix `docker stack deploy` not supporting `endpoint_mode` when deploying from a docker compose file  [#32333](https://github.com/docker/docker/pull/32333)
 - Proceed with startup if cluster component cannot be created to allow recovering from a broken swarm setup [#31631](https://github.com/docker/docker/pull/31631)
 

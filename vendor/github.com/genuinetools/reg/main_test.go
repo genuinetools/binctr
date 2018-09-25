@@ -13,6 +13,10 @@ import (
 	"github.com/genuinetools/reg/testutils"
 )
 
+const (
+	domain = "localhost:5000"
+)
+
 var (
 	exeSuffix string // ".exe" on Windows
 
@@ -32,6 +36,7 @@ var (
 			password: "testing",
 		},
 	}
+	registryHelper *testutils.RegistryHelper
 )
 
 func init() {
@@ -62,12 +67,24 @@ func TestMain(m *testing.M) {
 		panic(fmt.Errorf("could not connect to docker: %v", err))
 	}
 
+	// start the clair containers.
+	dbID, clairID, err := testutils.StartClair(dcli)
+	if err != nil {
+		testutils.RemoveContainer(dcli, dbID, clairID)
+		panic(fmt.Errorf("starting clair containers failed: %v", err))
+	}
+
 	for _, regConfig := range registryConfigs {
 		// start each registry
 		regID, _, err := testutils.StartRegistry(dcli, regConfig.config, regConfig.username, regConfig.password)
 		if err != nil {
-			testutils.RemoveContainer(dcli, regID)
+			testutils.RemoveContainer(dcli, dbID, clairID, regID)
 			panic(fmt.Errorf("starting registry container %s failed: %v", regConfig.config, err))
+		}
+
+		registryHelper, err = testutils.NewRegistryHelper(dcli, regConfig.username, regConfig.password, domain)
+		if err != nil {
+			panic(fmt.Errorf("creating registry helper %s failed: %v", regConfig.config, err))
 		}
 
 		flag.Parse()
@@ -79,9 +96,15 @@ func TestMain(m *testing.M) {
 		}
 
 		if merr != 0 {
+			testutils.RemoveContainer(dcli, dbID, clairID)
 			fmt.Printf("testing config %s failed\n", regConfig.config)
 			os.Exit(merr)
 		}
+	}
+
+	// remove clair containers.
+	if err := testutils.RemoveContainer(dcli, dbID, clairID); err != nil {
+		log.Printf("couldn't remove clair containers: %v", err)
 	}
 
 	os.Exit(0)
@@ -90,7 +113,10 @@ func TestMain(m *testing.M) {
 func run(args ...string) (string, error) {
 	prog := "./testreg" + exeSuffix
 	// always add trust insecure, and the registry
-	newargs := append([]string{"-d", "-k", "-r", "localhost:5000"}, args...)
+	newargs := []string{args[0], "-d", "-k"}
+	if len(args) > 1 {
+		newargs = append(newargs, args[1:]...)
+	}
 	cmd := exec.Command(prog, newargs...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err

@@ -23,10 +23,12 @@ RUN set -x \
 	&& rm -rf /go \
 	&& echo "Build complete."
 
-FROM scratch
+FROM alpine:latest
 
 COPY --from=builder /usr/bin/reg /usr/bin/reg
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
+
+WORKDIR /src
 
 ENTRYPOINT [ "reg" ]
 CMD [ "--help" ]

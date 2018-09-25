@@ -1,0 +1,74 @@
+{{define "tags"}}
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <base href="/" >
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>{{ .RegistryDomain }}/{{ .Name }}</title>
+    <link rel="icon" type="image/ico" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+    <h1>{{ .RegistryDomain }}/{{ .Name }}</h1>
+    <div class="wrapper">
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Tag</th>
+                <th>Created</th>
+                {{if .HasVulns}}<th>Vulnerabilities</th>{{end}}
+            </tr>
+            {{ range $key, $value := .Repositories }}
+            <tr>
+                <td valign="left" nowrap>
+                    {{if $.HasVulns}}<a href="/repo/{{ $value.Name | urlquery }}/tag/{{ $value.Tag }}/vulns">{{end}}
+                    {{ $value.Name }}
+                    {{if $.HasVulns}}</a>{{end}}
+                </td>
+                <td align="right" nowrap>
+                    {{if $.HasVulns}}<a href="/repo/{{ $value.Name | urlquery }}/tag/{{ $value.Tag }}/vulns">{{end}}
+                    {{ $value.Tag }}
+                    {{if $.HasVulns}}</a>{{end}}
+                </td>
+                <td align="right" nowrap>
+                    {{ $value.Created.Format "02 Jan, 2006 15:04:05 UTC" }}
+                </td>
+                {{if $.HasVulns}}
+                <td align="right" nowrap>
+                    <a href="/repo/{{ $value.Name | urlquery }}/tag/{{ $value.Tag }}/vulns" id="{{ $value.Name }}:{{ $value.Tag }}">
+                      <div class="signal"></div>
+                    </a>
+                </td>
+                {{end}}
+            </tr>
+            {{ end }}
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>Made with <code><3</code> by <a href="https://github.com/jessfraz">@jessfraz</a></p>
+        <p>Checkout the source code at: <a href="https://github.com/genuinetools/reg">github.com/genuinetools/reg</a></p>
+        <p>Last Updated: {{ .LastUpdated }}</p>
+    </div><!--/.footer-->
+    <script src="/static/js/scripts.js"></script>
+    {{if .HasVulns}}
+    <script type="text/javascript">
+      var ajaxCalls = [
+        {{ range $key, $value := .Repositories }}
+          '/repo/{{ $value.Name | urlquery }}/tag/{{ $value.Tag }}/vulns.json',
+        {{ end }}
+      ];
+      window.onload = function() {
+        Array.prototype.forEach.call(ajaxCalls, function(url, index){
+          loadVulnerabilityCount(url);
+        });
+      };
+    </script>
+    {{end}}
+</body>
+</html>
+{{end}}

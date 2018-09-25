@@ -3,20 +3,26 @@
   sudo: required
   language: go
   dist: trusty
+  osx_image: xcode9
   os:
     - linux
     - osx
   notifications:
     email: false
   go:
-    - 1.8
-  install: make deps
+    - 1.8.1
+  before_install:
+    # work-around for issue https://github.com/travis-ci/travis-ci/issues/6307
+    # might not be necessary in the future
+    - command curl -sSL https://rvm.io/mpapis.asc | gpg --import -
+    - rvm get stable
   addons:
     apt:
       packages:
         - libsecret-1-dev
         - pass
   before_script:
+    - make deps
     - "export DISPLAY=:99.0"
     - if [[ "$TRAVIS_OS_NAME" == "linux"  ]]; then sh ci/before_script_linux.sh; fi
     - make validate

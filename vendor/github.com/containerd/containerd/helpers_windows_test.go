@@ -1,5 +1,21 @@
 // +build windows
 
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package containerd
 
 import (
@@ -38,18 +54,4 @@ func withExecExitStatus(s *specs.Process, es int) {
 
 func withExecArgs(s *specs.Process, args ...string) {
 	s.Args = append([]string{"powershell", "-noprofile"}, args...)
-}
-
-func withImageConfig(i Image) oci.SpecOpts {
-	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {
-		s.Windows.LayerFolders = dockerLayerFolders
-		return nil
-	}
-}
-
-func withNewSnapshot(id string, i Image) NewContainerOpts {
-	// TODO: when windows has a snapshotter remove the withNewSnapshot helper
-	return func(ctx context.Context, client *Client, c *containers.Container) error {
-		return nil
-	}
 }

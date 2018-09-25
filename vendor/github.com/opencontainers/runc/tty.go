@@ -97,9 +97,11 @@ func (t *tty) recvtty(process *libcontainer.Process, socket *os.File) error {
 	// set raw mode to stdin and also handle interrupt
 	stdin, err := console.ConsoleFromFile(os.Stdin)
 	if err != nil {
+		epollConsole.Close()
 		return err
 	}
 	if err := stdin.SetRaw(); err != nil {
+		epollConsole.Close()
 		return fmt.Errorf("failed to set the terminal from the stdin: %v", err)
 	}
 	go handleInterrupt(stdin)
@@ -135,7 +137,7 @@ func (t *tty) ClosePostStart() error {
 	return nil
 }
 
-// Close closes all open fds for the tty and/or restores the orignal
+// Close closes all open fds for the tty and/or restores the original
 // stdin state to what it was prior to the container execution
 func (t *tty) Close() error {
 	// ensure that our side of the fds are always closed

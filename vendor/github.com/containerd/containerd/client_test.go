@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package containerd
 
 import (
@@ -9,23 +25,26 @@ import (
 	golog "log"
 	"os"
 	"os/exec"
-	"runtime"
 	"testing"
 	"time"
 
 	"google.golang.org/grpc/grpclog"
 
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/sys"
 	"github.com/containerd/containerd/testutil"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	address      string
-	noDaemon     bool
-	noCriu       bool
-	supportsCriu bool
+	address       string
+	noDaemon      bool
+	noCriu        bool
+	supportsCriu  bool
+	testNamespace = "testing"
 
 	ctrd = &daemon{}
 )
@@ -42,7 +61,7 @@ func init() {
 
 func testContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-	ctx = namespaces.WithNamespace(ctx, "testing")
+	ctx = namespaces.WithNamespace(ctx, testNamespace)
 	return ctx, cancel
 }
 
@@ -62,7 +81,7 @@ func TestMain(m *testing.M) {
 	defer cancel()
 
 	if !noDaemon {
-		os.RemoveAll(defaultRoot)
+		sys.ForceRemoveAll(defaultRoot)
 
 		err := ctrd.start("containerd", address, []string{
 			"--root", defaultRoot,
@@ -99,17 +118,10 @@ func TestMain(m *testing.M) {
 	}).Info("running tests against containerd")
 
 	// pull a seed image
-	if runtime.GOOS != "windows" { // TODO: remove once pull is supported on windows
-		if _, err = client.Pull(ctx, testImage, WithPullUnpack); err != nil {
-			ctrd.Stop()
-			ctrd.Wait()
-			fmt.Fprintf(os.Stderr, "%s: %s\n", err, buf.String())
-			os.Exit(1)
-		}
-	}
-
-	if err := platformTestSetup(client); err != nil {
-		fmt.Fprintln(os.Stderr, "platform test setup failed", err)
+	if _, err = client.Pull(ctx, testImage, WithPullUnpack, WithPlatform(platforms.Default())); err != nil {
+		ctrd.Stop()
+		ctrd.Wait()
+		fmt.Fprintf(os.Stderr, "%s: %s\n", err, buf.String())
 		os.Exit(1)
 	}
 
@@ -132,7 +144,7 @@ func TestMain(m *testing.M) {
 				fmt.Fprintln(os.Stderr, "failed to wait for containerd", err)
 			}
 		}
-		if err := os.RemoveAll(defaultRoot); err != nil {
+		if err := sys.ForceRemoveAll(defaultRoot); err != nil {
 			fmt.Fprintln(os.Stderr, "failed to remove test root dir", err)
 			os.Exit(1)
 		}
@@ -169,11 +181,6 @@ func TestNewClient(t *testing.T) {
 
 // All the container's tests depends on this, we need it to run first.
 func TestImagePull(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// TODO: remove once Windows has a snapshotter
-		t.Skip("Windows does not have a snapshotter yet")
-	}
-
 	client, err := newClient(t, address)
 	if err != nil {
 		t.Fatal(err)
@@ -182,9 +189,145 @@ func TestImagePull(t *testing.T) {
 
 	ctx, cancel := testContext()
 	defer cancel()
-	_, err = client.Pull(ctx, testImage)
+	_, err = client.Pull(ctx, testImage, WithPlatform(platforms.Default()))
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
+	}
+}
+
+func TestImagePullAllPlatforms(t *testing.T) {
+	client, err := newClient(t, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	ctx, cancel := testContext()
+	defer cancel()
+
+	cs := client.ContentStore()
+	img, err := client.Pull(ctx, testImage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := img.Target()
+	manifests, err := images.Children(ctx, cs, index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, manifest := range manifests {
+		children, err := images.Children(ctx, cs, manifest)
+		if err != nil {
+			t.Fatal("Th")
+		}
+		// check if childless data type has blob in content store
+		for _, desc := range children {
+			ra, err := cs.ReaderAt(ctx, desc.Digest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ra.Close()
+		}
+	}
+}
+
+func TestImagePullSomePlatforms(t *testing.T) {
+	client, err := newClient(t, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	ctx, cancel := testContext()
+	defer cancel()
+
+	cs := client.ContentStore()
+	platformList := []string{"linux/amd64", "linux/arm64/v8", "linux/s390x"}
+	m := make(map[string]platforms.Matcher)
+	var opts []RemoteOpt
+
+	for _, platform := range platformList {
+		p, err := platforms.Parse(platform)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m[platform] = platforms.NewMatcher(p)
+		opts = append(opts, WithPlatform(platform))
+	}
+
+	img, err := client.Pull(ctx, "docker.io/library/busybox:latest", opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	index := img.Target()
+	manifests, err := images.Children(ctx, cs, index)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count := 0
+	for _, manifest := range manifests {
+		children, err := images.Children(ctx, cs, manifest)
+		found := false
+		for _, matcher := range m {
+			if matcher.Match(*manifest.Platform) {
+				count++
+				found = true
+			}
+		}
+
+		if found {
+			if len(children) == 0 {
+				t.Fatal("manifest should have pulled children content")
+			}
+
+			// check if childless data type has blob in content store
+			for _, desc := range children {
+				ra, err := cs.ReaderAt(ctx, desc.Digest)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ra.Close()
+			}
+		} else if !found && err == nil {
+			t.Fatal("manifest should not have pulled children content")
+		}
+	}
+
+	if count != len(platformList) {
+		t.Fatal("expected a different number of pulled manifests")
+	}
+}
+
+func TestClientReconnect(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testContext()
+	defer cancel()
+
+	client, err := newClient(t, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client == nil {
+		t.Fatal("New() returned nil client")
+	}
+	ok, err := client.IsServing(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("containerd is not serving")
+	}
+	if err := client.Reconnect(); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err = client.IsServing(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("containerd is not serving")
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("client closed returned errror %v", err)
 	}
 }

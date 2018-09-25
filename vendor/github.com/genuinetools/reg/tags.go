@@ -1,28 +1,51 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
+	"sort"
 	"strings"
 
-	"github.com/urfave/cli"
+	"github.com/genuinetools/reg/registry"
 )
 
-var tagsCommand = cli.Command{
-	Name:  "tags",
-	Usage: "get the tags for a repository",
-	Action: func(c *cli.Context) error {
-		if len(c.Args()) < 1 {
-			return fmt.Errorf("pass the name of the repository")
-		}
+const tagsHelp = `Get the tags for a repository.`
 
-		tags, err := r.Tags(c.Args()[0])
-		if err != nil {
-			return err
-		}
+func (cmd *tagsCommand) Name() string      { return "tags" }
+func (cmd *tagsCommand) Args() string      { return "[OPTIONS] NAME[:TAG|@DIGEST]" }
+func (cmd *tagsCommand) ShortHelp() string { return tagsHelp }
+func (cmd *tagsCommand) LongHelp() string  { return tagsHelp }
+func (cmd *tagsCommand) Hidden() bool      { return false }
 
-		// Print the tags.
-		fmt.Println(strings.Join(tags, "\n"))
+func (cmd *tagsCommand) Register(fs *flag.FlagSet) {}
 
-		return nil
-	},
+type tagsCommand struct{}
+
+func (cmd *tagsCommand) Run(ctx context.Context, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("pass the name of the repository")
+	}
+
+	image, err := registry.ParseImage(args[0])
+	if err != nil {
+		return err
+	}
+
+	// Create the registry client.
+	r, err := createRegistryClient(image.Domain)
+	if err != nil {
+		return err
+	}
+
+	tags, err := r.Tags(image.Path)
+	if err != nil {
+		return err
+	}
+	sort.Strings(tags)
+
+	// Print the tags.
+	fmt.Println(strings.Join(tags, "\n"))
+
+	return nil
 }

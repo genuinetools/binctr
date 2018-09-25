@@ -7,6 +7,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker-ce/components/cli/cli/config"
 	"github.com/docker/docker/api/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -80,7 +81,7 @@ func GetAuthConfig(username, password, registry string) (types.AuthConfig, error
 			}
 		}
 
-		fmt.Printf("Using registry %q with no authentication\n", registry)
+		logrus.Debugf("Using registry %q with no authentication", registry)
 
 		// Otherwise just use the registry with no auth.
 		return setDefaultRegistry(types.AuthConfig{

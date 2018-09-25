@@ -27,7 +27,7 @@ func pull(ctx context.Context, dst distribution.Namespace, name reference.Named,
 
 	// TODO: add flag to flip switch for turning off SSL verification
 	// Create a new registry client.
-	src, err := registry.New(auth, false)
+	src, err := registry.New(auth, registry.Opt{})
 	if err != nil {
 		return fmt.Errorf("creating new registry api client failed: %v", err)
 	}
