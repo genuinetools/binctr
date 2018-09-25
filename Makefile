@@ -8,7 +8,7 @@ CGO_ENABLED := 1
 BUILDTAGS := seccomp apparmor
 
 .PHONY: everything
-everything: clean fmt lint test staticcheck vet alpine busybox cl-k8s ## Builds a static executable or package.
+everything: clean alpine busybox cl-k8s fmt lint test staticcheck vet ## Builds a static executable or package.
 
 include basic.mk
 
