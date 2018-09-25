@@ -227,5 +227,6 @@ func lazyChown(p string, uid, gid int, stat *system.StatT) error {
 	if stat.UID() == uint32(uid) && stat.GID() == uint32(gid) {
 		return nil
 	}
-	return os.Chown(p, uid, gid)
+	os.Chown(p, uid, gid)
+	return nil
 }
