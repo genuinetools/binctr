@@ -49,6 +49,8 @@ cross/
 coverage.txt
 profile.out
 
+!go.mod
+
 rootfs
 config.json
 .ip

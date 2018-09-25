@@ -1,32 +1,13 @@
----
-  language: go
-  sudo: required
-  services:
+language: go
+sudo: required
+services:
   - docker
-  notifications:
-    email: true
-  go:
-    - 1.x
-    - tip
-  env:
-    global:
-      - GO15VENDOREXPERIMENT=1
-  matrix:
-    allow_failures:
-      - go: tip
-    fast_finish: true
-  install:
-    - go get github.com/golang/lint/golint
-    - go get honnef.co/go/tools/cmd/staticcheck
-    - echo "deb http://archive.ubuntu.com/ubuntu trusty-backports main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/backports.list
-    - sudo apt update && sudo apt install -y -t trusty-backports libapparmor-dev libseccomp-dev
-  script:
-    - make
-    - go vet $(go list ./... | grep -v vendor)
-    - staticcheck $(go list ./... | grep -v vendor)
-    - test -z "$(golint ./... | grep -v vendor | tee /dev/stderr)"
-    - test -z "$(gofmt -s -l . | grep -v vendor | grep -v bindata.go | tee /dev/stderr)"
-    - go test $(go list ./... | grep -v vendor)
-    - make cover
-  after_success:
-    - bash <(curl -s https://codecov.io/bash)
+go:
+  - 1.10.x
+before_install:
+  - go get github.com/golang/lint/golint
+  - go get honnef.co/go/tools/cmd/staticcheck
+jobs:
+  include:
+    - script: make everything
+    - stage: Run Test Coverage
