@@ -5,7 +5,7 @@ services:
 go:
   - 1.10.x
 before_install:
-  - go get github.com/golang/lint/golint
+  - go get golang.org/x/lint/golint
   - go get honnef.co/go/tools/cmd/staticcheck
   - echo "deb http://archive.ubuntu.com/ubuntu trusty-backports main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/backports.list
   - sudo apt update && sudo apt install -y -t trusty-backports libapparmor-dev libseccomp-dev
