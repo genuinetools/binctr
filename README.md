@@ -17,6 +17,12 @@ got rootless containers into upstream! Woohoo!
 Check out the original thread on the 
 [mailing list](https://groups.google.com/a/opencontainers.org/forum/#!topic/dev/yutVaSLcqWI).
 
+**Table of Contents**
+
+<!-- toc -->
+
+<!-- tocstop -->
+
 ### Checking out this repo
 
 ```console
