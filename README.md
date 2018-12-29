@@ -21,6 +21,11 @@ Check out the original thread on the
 
 <!-- toc -->
 
+  * [Checking out this repo](#checking-out-this-repo)
+  * [Building](#building)
+  * [Running](#running)
+- [Cool things](#cool-things)
+
 <!-- tocstop -->
 
 ### Checking out this repo
