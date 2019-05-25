@@ -1,3 +1,6 @@
+# Set the shell
+SHELL := /bin/bash
+
 # Set an output prefix, which is the local directory if not specified
 PREFIX?=$(shell pwd)
 
@@ -56,12 +59,16 @@ all: clean build fmt lint test staticcheck vet install ## Runs a clean, build, f
 .PHONY: fmt
 fmt: ## Verifies all files have been `gofmt`ed.
 	@echo "+ $@"
-	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
+	@if [[ ! -z "$(shell gofmt -s -l . | grep -v '.pb.go' | grep -v '.twirp.go' | grep -v 'bindata.go' | grep -v vendor | tee /dev/stderr)" ]]; then \
+		exit 1; \
+	fi
 
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "+ $@"
-	@golint ./... | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
+	@if [[ ! -z "$(shell golint ./... | grep -v '.pb.go:' | grep -v '.twirp.go:' | grep -v vendor | tee /dev/stderr)" ]]; then \
+		exit 1; \
+	fi
 
 .PHONY: test
 test: prebuild ## Runs the go tests.
@@ -71,12 +78,16 @@ test: prebuild ## Runs the go tests.
 .PHONY: vet
 vet: ## Verifies `go vet` passes.
 	@echo "+ $@"
-	@$(GO) vet $(shell $(GO) list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
+	@if [[ ! -z "$(shell $(GO) vet $(shell $(GO) list ./... | grep -v vendor) | tee /dev/stderr)" ]]; then \
+		exit 1; \
+	fi
 
 .PHONY: staticcheck
 staticcheck: ## Verifies `staticcheck` passes.
 	@echo "+ $@"
-	@staticcheck $(shell $(GO) list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
+	@if [[ ! -z "$(shell staticcheck $(shell $(GO) list ./... | grep -v vendor) | grep -v 'bindata.go:' | tee /dev/stderr)" ]]; then \
+		exit 1; \
+	fi
 
 .PHONY: cover
 cover: prebuild ## Runs go test with coverage.

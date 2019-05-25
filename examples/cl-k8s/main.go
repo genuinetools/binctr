@@ -24,9 +24,8 @@ var (
 	containerID string
 	root        string
 
-	file      string
-	dir       string
-	shortpath string
+	file string
+	dir  string
 )
 
 func init() {
